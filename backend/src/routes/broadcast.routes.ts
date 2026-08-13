@@ -51,13 +51,12 @@ broadcastRouter.post('/', async (req: Request, res: Response) => {
 
   broadcastsDb.push(newBroadcast);
 
-  // Call OpenWA schedule API
-  await OpenWAService.scheduleMessage(
+  // Call OpenWA send API (schedule logic handled at application layer)
+  await OpenWAService.sendMessage(
     `tenant_${targetTenantId}`,
     'op_key_pizzeria_abc123',
     'GROUP_VIP_TAG',
-    messageContent,
-    scheduledFor
+    messageContent
   );
 
   return res.json({
