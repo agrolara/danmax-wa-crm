@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API } from '../services/api';
 import { socket } from '../services/socket';
-import { Zap, Plus, ArrowRight, X, Phone, DollarSign, RefreshCw, User, MessageSquare, ExternalLink } from 'lucide-react';
+import { Zap, Plus, ArrowRight, X, Phone, DollarSign, RefreshCw, User, MessageSquare, ExternalLink, CheckCircle } from 'lucide-react';
 
 interface KanbanProps {
   setCurrentTab?: (tab: string) => void;
@@ -19,72 +19,50 @@ export const KanbanPipelineView: React.FC<KanbanProps> = ({ setCurrentTab }) => 
   const [items, setItems] = useState<string>('');
   const [targetColumnId, setTargetColumnId] = useState<string>('col_1');
   const [submitting, setSubmitting] = useState<boolean>(false);
-  const [importingChats, setImportingChats] = useState<boolean>(false);
 
-  const fetchKanbanAndSyncChats = async () => {
+  const fetchKanban = async () => {
     try {
       const res = await API.get('/kanban?tenantId=tenant_demo_pizzeria');
-      let currentCols = res.data.success ? res.data.columns : [];
-
-      // Auto-sync active WhatsApp chats into "Contacto Nuevo" (col_1) if not present
-      try {
-        const resChats = await API.get('/chats?tenantId=tenant_demo_pizzeria');
-        if (resChats.data.success && resChats.data.chats.length > 0) {
-          // Gather all existing lead phones or IDs
-          const existingIds = new Set();
-          currentCols.forEach((c: any) => {
-            c.leads.forEach((l: any) => {
-              existingIds.add(l.id);
-              existingIds.add(l.phone);
-              existingIds.add(l.contactName);
-            });
-          });
-
-          for (const chat of resChats.data.chats) {
-            if (!existingIds.has(chat.id) && !existingIds.has(chat.phone) && !existingIds.has(chat.contactName)) {
-              await API.post('/kanban/leads', {
-                tenantId: 'tenant_demo_pizzeria',
-                columnId: 'col_1',
-                contactName: chat.contactName,
-                phone: chat.phone,
-                value: '$50.000',
-                items: chat.lastMessageText || 'Chat de WhatsApp Activo',
-              });
-            }
-          }
-
-          // Re-fetch kanban with synced leads
-          const resUpdated = await API.get('/kanban?tenantId=tenant_demo_pizzeria');
-          if (resUpdated.data.success) {
-            currentCols = resUpdated.data.columns;
-          }
-        }
-      } catch (errSync) {
-        console.warn('Auto-sync chats warning:', errSync);
+      if (res.data.success) {
+        setColumns(res.data.columns);
       }
-
-      setColumns(currentCols);
     } catch (err) {
       console.error(err);
     }
   };
 
   useEffect(() => {
-    fetchKanbanAndSyncChats();
+    fetchKanban();
 
     socket.on('kanban_updated', (updatedCols: any[]) => {
       setColumns(updatedCols);
     });
 
+    // Auto-add ONLY NEW incoming WhatsApp messages/contacts to "Contacto Nuevo"
+    socket.on('new_message', (data: any) => {
+      if (data && data.chatId && data.message && data.message.direction === 'INBOUND') {
+        API.post('/kanban/leads', {
+          tenantId: 'tenant_demo_pizzeria',
+          columnId: 'col_1',
+          contactName: data.contactName || `Cliente ${data.chatId.replace(/@.*/, '')}`,
+          phone: data.phone || data.chatId,
+          value: '$50.000',
+          items: data.message.content || 'Nuevo Mensaje Entrante de WhatsApp',
+          chatId: data.chatId,
+        }).then(() => fetchKanban());
+      }
+    });
+
     return () => {
       socket.off('kanban_updated');
+      socket.off('new_message');
     };
   }, []);
 
-  const handleOpenChatInbox = (chatId?: string) => {
-    if (chatId) {
-      localStorage.setItem('danmax_active_chat', chatId);
-    }
+  const handleOpenChatInbox = (lead: any) => {
+    const targetIdentifier = lead.chatId || lead.phone || lead.contactName || lead.id;
+    localStorage.setItem('danmax_target_chat', targetIdentifier);
+
     if (setCurrentTab) {
       setCurrentTab('chat');
     }
@@ -100,7 +78,7 @@ export const KanbanPipelineView: React.FC<KanbanProps> = ({ setCurrentTab }) => 
       });
 
       if (res.data.success) {
-        fetchKanbanAndSyncChats();
+        fetchKanban();
         if (res.data.autoTriggerText) {
           setNotification(`🤖 Mensaje Enviado Automáticamente al Cliente: "${res.data.autoTriggerText}"`);
         } else {
@@ -129,7 +107,7 @@ export const KanbanPipelineView: React.FC<KanbanProps> = ({ setCurrentTab }) => 
       });
 
       if (res.data.success) {
-        fetchKanbanAndSyncChats();
+        fetchKanban();
         setShowModal(false);
         setContactName('');
         setPhone('');
@@ -151,16 +129,16 @@ export const KanbanPipelineView: React.FC<KanbanProps> = ({ setCurrentTab }) => 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h2 style={{ fontSize: '1.3rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            🎯 Embudo de Ventas Kanban Automatizado
+            🎯 Embudo de Ventas Kanban Automatizado (5 Etapas)
           </h2>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Cada mensaje o cliente nuevo llega a <strong>Contacto Nuevo</strong>. Haz clic en cualquier tarjeta para chatear en vivo en la Bandeja Multi-Agente.
+            Cada vez que alguien nuevo escriba por WhatsApp llegará a <strong>Contacto Nuevo</strong>. Haz clic en "Abrir Chat con Cliente" para chatear directamente en la Bandeja Multi-Agente.
           </p>
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button className="btn btn-secondary" onClick={fetchKanbanAndSyncChats} disabled={importingChats}>
-            <RefreshCw size={16} className={importingChats ? 'spin' : ''} />
+          <button className="btn btn-secondary" onClick={fetchKanban}>
+            <RefreshCw size={16} />
             <span>Actualizar Embudo</span>
           </button>
           <button className="btn btn-primary" onClick={() => setShowModal(true)}>
@@ -177,7 +155,7 @@ export const KanbanPipelineView: React.FC<KanbanProps> = ({ setCurrentTab }) => 
         </div>
       )}
 
-      {/* Tablero Kanban */}
+      {/* Tablero Kanban (5 Columnas: Contacto Nuevo -> En Cotización -> En Seguimiento -> Venta Cerrada -> Terminado) */}
       <div className="kanban-board" style={{ padding: 0 }}>
         {columns.map((col) => (
           <div key={col.id} className="kanban-column">
@@ -191,7 +169,7 @@ export const KanbanPipelineView: React.FC<KanbanProps> = ({ setCurrentTab }) => 
 
             {col.autoTemplateText && (
               <div style={{ padding: '0.5rem 1rem', fontSize: '0.75rem', background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Zap size={12} color="var(--accent-amber)" /> Auto-Respuesta en WhatsApp
+                <Zap size={12} color="var(--accent-amber)" /> Auto-Respuesta Activa
               </div>
             )}
 
@@ -220,15 +198,16 @@ export const KanbanPipelineView: React.FC<KanbanProps> = ({ setCurrentTab }) => 
                       <Phone size={12} /> <span>{lead.phone}</span>
                     </div>
 
-                    {/* Acciones: Ir al Chat en Bandeja Multi-Agente & Mover de Etapa */}
+                    {/* Acciones: Redirección al Chat Específico & Mover Etapa */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.75rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-color)' }}>
                       <button
                         className="btn btn-primary"
                         style={{ width: '100%', padding: '0.35rem', fontSize: '0.75rem', justifyContent: 'center' }}
-                        onClick={() => handleOpenChatInbox(lead.phone || lead.id)}
+                        onClick={() => handleOpenChatInbox(lead)}
+                        title="Abrir el chat directamente con este cliente en la Bandeja Multi-Agente"
                       >
                         <MessageSquare size={13} />
-                        <span>Abrir Chat en Bandeja</span>
+                        <span>Abrir Chat con Cliente</span>
                         <ExternalLink size={11} />
                       </button>
 

@@ -27,9 +27,27 @@ export const ChatInboxView: React.FC = () => {
     try {
       const res = await API.get('/chats?tenantId=tenant_demo_pizzeria');
       if (res.data.success) {
-        setChats(res.data.chats);
-        if (res.data.chats.length > 0 && !activeChatId) {
-          setActiveChatId(res.data.chats[0].id);
+        const fetchedChats = res.data.chats;
+        setChats(fetchedChats);
+
+        const targetChatId = localStorage.getItem('danmax_target_chat');
+        if (targetChatId && fetchedChats.length > 0) {
+          const matched = fetchedChats.find(
+            (c: any) =>
+              c.id === targetChatId ||
+              c.phone === targetChatId ||
+              c.contactName?.toLowerCase() === targetChatId.toLowerCase() ||
+              c.id.includes(targetChatId) ||
+              targetChatId.includes(c.id)
+          );
+          if (matched) {
+            setActiveChatId(matched.id);
+          } else {
+            setActiveChatId(fetchedChats[0].id);
+          }
+          localStorage.removeItem('danmax_target_chat');
+        } else if (fetchedChats.length > 0 && !activeChatId) {
+          setActiveChatId(fetchedChats[0].id);
         }
       }
 
