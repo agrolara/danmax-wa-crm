@@ -7,16 +7,61 @@ import { ENV } from '../config/env';
 
 export const tenantRouter = Router();
 
-const tenantSessions: Record<string, any> = {
+export interface WhatsAppLine {
+  id: string;
+  name: string;
+  whatsappPhone: string | null;
+  status: 'DISCONNECTED' | 'STARTING' | 'SCAN_QR' | 'READY';
+  qrCodeUrl?: string | null;
+  openwaSessionId: string;
+  createdAt: string;
+}
+
+interface TenantData {
+  tenantId: string;
+  name: string;
+  activeLineId: string;
+  lines: WhatsAppLine[];
+}
+
+const tenantStore: Record<string, TenantData> = {
   tenant_demo_pizzeria: {
     tenantId: 'tenant_demo_pizzeria',
-    name: 'Pizzeria Don Luigi',
-    whatsappPhone: '+56987654321',
-    status: 'DISCONNECTED',
-    openwaSessionId: 'tenant_demo_pizzeria',
-    openwaOperatorKey: 'op_key_pizzeria_abc123',
+    name: 'Mi Negocio DanMax WA',
+    activeLineId: 'line_default',
+    lines: [
+      {
+        id: 'line_default',
+        name: 'Línea Principal WhatsApp',
+        whatsappPhone: '+56986176136',
+        status: 'READY',
+        openwaSessionId: 'pizzeria-crm-tenant',
+        createdAt: new Date().toISOString(),
+      },
+    ],
   },
 };
+
+function getOrCreateTenant(tenantId: string = 'tenant_demo_pizzeria'): TenantData {
+  if (!tenantStore[tenantId]) {
+    tenantStore[tenantId] = {
+      tenantId,
+      name: 'Mi Negocio DanMax WA',
+      activeLineId: 'line_1',
+      lines: [
+        {
+          id: 'line_1',
+          name: 'Línea WhatsApp Principal',
+          whatsappPhone: null,
+          status: 'DISCONNECTED',
+          openwaSessionId: `session_${tenantId}_line_1`,
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    };
+  }
+  return tenantStore[tenantId];
+}
 
 function updateEnvFile(key: string, value: string) {
   const envPath = path.join(__dirname, '../../.env');
@@ -53,7 +98,7 @@ tenantRouter.get('/openwa-config', async (req: Request, res: Response) => {
   });
 });
 
-// POST /api/tenant/config-openwa (Do not overwrite if key is empty)
+// POST /api/tenant/config-openwa
 tenantRouter.post('/config-openwa', async (req: Request, res: Response) => {
   const { apiUrl, adminKey } = req.body;
 
@@ -63,7 +108,6 @@ tenantRouter.post('/config-openwa', async (req: Request, res: Response) => {
     updateEnvFile('OPENWA_API_URL', apiUrl);
   }
 
-  // Only update adminKey if provided and not masked bullets
   if (adminKey && !adminKey.includes('•')) {
     ENV.OPENWA_ADMIN_KEY = adminKey;
     process.env.OPENWA_ADMIN_KEY = adminKey;
@@ -84,36 +128,100 @@ tenantRouter.post('/config-openwa', async (req: Request, res: Response) => {
   });
 });
 
-// GET /api/tenant/my-session
+// GET /api/tenant/my-session (Returns tenant lines and active line)
 tenantRouter.get('/my-session', async (req: Request, res: Response) => {
   const tenantId = (req.query.tenantId as string) || 'tenant_demo_pizzeria';
-  const session = tenantSessions[tenantId] || {
-    tenantId,
-    name: 'Mi Negocio',
-    status: 'DISCONNECTED',
-    openwaSessionId: `tenant_${tenantId}`,
-  };
+  const tenant = getOrCreateTenant(tenantId);
 
+  // Sync state with live OpenWA sessions
   if (ENV.OPENWA_ADMIN_KEY) {
-    // Check if session exists in OpenWA
-    const sessionName = 'pizzeria-crm-tenant';
-    try {
-      const list = await OpenWAService.findOrCreateSession(sessionName);
-      if (list && (list.status === 'ready' || list.status === 'CONNECTED')) {
-        session.status = 'READY';
-        session.whatsappPhone = list.phone || list.pushName || '+56987654321';
-      }
-    } catch (e) {}
+    for (const line of tenant.lines) {
+      try {
+        const liveInfo = await OpenWAService.findOrCreateSession(line.openwaSessionId);
+        if (liveInfo && (liveInfo.status === 'ready' || liveInfo.status === 'CONNECTED')) {
+          line.status = 'READY';
+          line.whatsappPhone = liveInfo.phone || liveInfo.pushName || line.whatsappPhone || '+56986176136';
+        }
+      } catch (e) {}
+    }
   }
 
-  return res.json({ success: true, session });
+  const activeLine = tenant.lines.find((l) => l.id === tenant.activeLineId) || tenant.lines[0];
+
+  return res.json({
+    success: true,
+    tenant,
+    session: activeLine,
+    lines: tenant.lines,
+    activeLineId: tenant.activeLineId,
+  });
+});
+
+// POST /api/tenant/add-line (Create a new WhatsApp line with a custom session name)
+tenantRouter.post('/add-line', async (req: Request, res: Response) => {
+  const { tenantId, name } = req.body;
+  const targetTenantId = tenantId || 'tenant_demo_pizzeria';
+  const tenant = getOrCreateTenant(targetTenantId);
+
+  const customName = name?.trim() || `Línea WhatsApp ${tenant.lines.length + 1}`;
+  const lineId = `line_${Date.now()}`;
+  const openwaSessionId = `sess_${targetTenantId}_${Date.now()}`;
+
+  const newLine: WhatsAppLine = {
+    id: lineId,
+    name: customName,
+    whatsappPhone: null,
+    status: 'DISCONNECTED',
+    openwaSessionId,
+    createdAt: new Date().toISOString(),
+  };
+
+  tenant.lines.push(newLine);
+  tenant.activeLineId = lineId;
+
+  return res.json({
+    success: true,
+    message: `Línea "${customName}" creada exitosamente`,
+    line: newLine,
+    lines: tenant.lines,
+  });
+});
+
+// POST /api/tenant/switch-line (Switch active line for multi-session)
+tenantRouter.post('/switch-line', (req: Request, res: Response) => {
+  const { tenantId, lineId } = req.body;
+  const targetTenantId = tenantId || 'tenant_demo_pizzeria';
+  const tenant = getOrCreateTenant(targetTenantId);
+
+  const targetLine = tenant.lines.find((l) => l.id === lineId);
+  if (!targetLine) {
+    return res.status(404).json({ success: false, error: 'Línea de WhatsApp no encontrada' });
+  }
+
+  tenant.activeLineId = lineId;
+
+  return res.json({
+    success: true,
+    message: `Cambiado a la línea "${targetLine.name}"`,
+    activeLine: targetLine,
+    lines: tenant.lines,
+  });
 });
 
 // POST /api/tenant/connect-whatsapp
 tenantRouter.post('/connect-whatsapp', async (req: Request, res: Response) => {
-  const { tenantId } = req.body;
+  const { tenantId, lineId, sessionNameLabel } = req.body;
   const targetTenantId = tenantId || 'tenant_demo_pizzeria';
-  const sessionName = 'pizzeria-crm-tenant';
+  const tenant = getOrCreateTenant(targetTenantId);
+
+  let line = tenant.lines.find((l) => l.id === (lineId || tenant.activeLineId));
+  if (!line) {
+    line = tenant.lines[0];
+  }
+
+  if (sessionNameLabel?.trim()) {
+    line.name = sessionNameLabel.trim();
+  }
 
   if (!ENV.OPENWA_ADMIN_KEY) {
     return res.status(400).json({
@@ -122,15 +230,11 @@ tenantRouter.post('/connect-whatsapp', async (req: Request, res: Response) => {
     });
   }
 
-  tenantSessions[targetTenantId] = {
-    ...tenantSessions[targetTenantId],
-    status: 'STARTING',
-    openwaSessionId: sessionName,
-  };
-
-  const openwaResult = await OpenWAService.startSession(sessionName);
+  line.status = 'STARTING';
+  const openwaResult = await OpenWAService.startSession(line.openwaSessionId);
 
   if (!openwaResult.success) {
+    line.status = 'DISCONNECTED';
     return res.status(500).json({
       success: false,
       error: openwaResult.error || 'Error al iniciar sesión en OpenWA',
@@ -138,12 +242,14 @@ tenantRouter.post('/connect-whatsapp', async (req: Request, res: Response) => {
   }
 
   if (openwaResult.status === 'READY') {
-    tenantSessions[targetTenantId].status = 'READY';
-    tenantSessions[targetTenantId].whatsappPhone = openwaResult.me || '+56987654321';
+    line.status = 'READY';
+    line.whatsappPhone = openwaResult.me || '+56986176136';
 
     socketService.emitToTenant(targetTenantId, 'whatsapp_status', {
       status: 'READY',
-      whatsappPhone: tenantSessions[targetTenantId].whatsappPhone,
+      lineId: line.id,
+      whatsappPhone: line.whatsappPhone,
+      sessionNameLabel: line.name,
       message: openwaResult.message,
     });
 
@@ -151,71 +257,51 @@ tenantRouter.post('/connect-whatsapp', async (req: Request, res: Response) => {
       success: true,
       message: openwaResult.message,
       sessionStatus: 'READY',
-      whatsappPhone: tenantSessions[targetTenantId].whatsappPhone,
+      whatsappPhone: line.whatsappPhone,
+      line,
     });
   }
 
   const qrUrl = openwaResult.qrCode;
-  tenantSessions[targetTenantId].status = 'SCAN_QR';
+  line.status = 'SCAN_QR';
+  line.qrCodeUrl = qrUrl;
 
   socketService.emitToTenant(targetTenantId, 'whatsapp_qr', {
     status: 'SCAN_QR',
+    lineId: line.id,
     qrCodeUrl: qrUrl,
-    sessionId: sessionName,
+    sessionId: line.openwaSessionId,
+    sessionNameLabel: line.name,
   });
 
   return res.json({
     success: true,
-    message: 'Proceso de vinculación de WhatsApp iniciado con OpenWA',
+    message: `Proceso de vinculación iniciado para "${line.name}"`,
     sessionStatus: 'SCAN_QR',
     qrCodeUrl: qrUrl,
-    sessionId: sessionName,
-    openwaResult,
+    line,
   });
 });
 
 // POST /api/tenant/disconnect-whatsapp
 tenantRouter.post('/disconnect-whatsapp', async (req: Request, res: Response) => {
-  const { tenantId } = req.body;
+  const { tenantId, lineId } = req.body;
   const targetTenantId = tenantId || 'tenant_demo_pizzeria';
-  const sessionName = 'pizzeria-crm-tenant';
+  const tenant = getOrCreateTenant(targetTenantId);
 
-  await OpenWAService.stopSession(sessionName);
-
-  tenantSessions[targetTenantId] = {
-    ...tenantSessions[targetTenantId],
-    status: 'DISCONNECTED',
-    whatsappPhone: null,
-  };
+  const line = tenant.lines.find((l) => l.id === (lineId || tenant.activeLineId));
+  if (line) {
+    await OpenWAService.stopSession(line.openwaSessionId);
+    line.status = 'DISCONNECTED';
+    line.whatsappPhone = null;
+    line.qrCodeUrl = null;
+  }
 
   socketService.emitToTenant(targetTenantId, 'whatsapp_status', {
     status: 'DISCONNECTED',
+    lineId: line?.id,
     message: 'Sesión de WhatsApp desconectada.',
   });
 
-  return res.json({ success: true, message: 'Sesión cerrada exitosamente en OpenWA' });
-});
-
-// POST /api/tenant/simulate-ready
-tenantRouter.post('/simulate-ready', (req: Request, res: Response) => {
-  const { tenantId, phone } = req.body;
-  const targetTenantId = tenantId || 'tenant_demo_pizzeria';
-
-  tenantSessions[targetTenantId] = {
-    ...tenantSessions[targetTenantId],
-    status: 'READY',
-    whatsappPhone: phone || '+56987654321',
-    openwaOperatorKey: `op_key_${targetTenantId}_real`,
-  };
-
-  socketService.emitToTenant(targetTenantId, 'whatsapp_status', {
-    status: 'READY',
-    whatsappPhone: tenantSessions[targetTenantId].whatsappPhone,
-    message: '¡WhatsApp vinculado exitosamente con OpenWA Engine!',
-  });
-
-  return res.json({
-    success: true,
-    session: tenantSessions[targetTenantId],
-  });
+  return res.json({ success: true, message: 'Sesión cerrada exitosamente en OpenWA', lines: tenant.lines });
 });

@@ -1,20 +1,20 @@
 const axios = require('axios');
 
-async function redeployApp() {
+async function redeploy() {
   const coolifyUrl = 'http://148.116.104.222:8000';
   const apiToken = '1|6PdqwcucWGKSKnK9bykViP4ArSmuXPv8wArWFPBq5b5ba9b0';
-  const appUuid = 'b12vfxigz7vkx0u20cawbvxj';
+  const appUuid = 'tpu9apsacq91bw8ap1iswjwu';
 
   try {
-    const deployRes = await axios.post(
+    const res = await axios.post(
       `${coolifyUrl}/api/v1/deploy`,
       { uuid: appUuid },
       { headers: { Authorization: `Bearer ${apiToken}` } }
     );
-    console.log('[Redeploy Triggered!]:', deployRes.data);
+    console.log('[Redeploy Triggered!]:', res.data);
   } catch (err) {
-    console.error('[Redeploy Error]:', err.response?.data || err.message);
+    console.error('[Error]:', err.response?.data || err.message);
   }
 }
 
-redeployApp();
+redeploy();
