@@ -19,7 +19,7 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV PORT=4000
+ENV PORT=4500
 
 # Copy built backend & node_modules
 COPY --from=backend-builder /app/backend/package*.json ./
@@ -31,7 +31,7 @@ COPY --from=backend-builder /app/backend/prisma ./prisma
 COPY --from=frontend-builder /app/frontend/dist ./frontend-dist
 
 # Expose backend port
-EXPOSE 4000
+EXPOSE 4500
 
 # Start production server
 CMD ["node", "dist/index.js"]
