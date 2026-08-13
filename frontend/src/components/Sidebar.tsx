@@ -51,15 +51,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <>
-      {/* ↔️ Botón Franja Vertical Extendida a todo el Costado de la Pantalla */}
+      {/* ↔️ Botón Flotante Circular Elegante y Profesional para Ocultar/Mostrar Barra Lateral */}
       <button
-        className="sidebar-toggle-edge"
+        className="sidebar-toggle-floating"
         title={isCollapsed ? 'Desplegar Menú Lateral' : 'Colapsar Menú Lateral'}
         onClick={() => setIsCollapsed(!isCollapsed)}
       >
-        <div className="edge-icon-pill">
-          {isCollapsed ? <ChevronRight size={18} color="white" /> : <ChevronLeft size={18} color="white" />}
-        </div>
+        {isCollapsed ? <ChevronRight size={16} color="var(--text-main)" /> : <ChevronLeft size={16} color="var(--text-main)" />}
       </button>
 
       <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`} style={{ overflowY: 'auto', maxHeight: '100vh' }}>
