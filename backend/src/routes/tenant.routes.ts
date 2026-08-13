@@ -20,7 +20,7 @@ export interface WhatsAppLine {
 interface TenantData {
   tenantId: string;
   name: string;
-  activeLineId: string;
+  activeLineId: string | null;
   lines: WhatsAppLine[];
 }
 
@@ -28,17 +28,8 @@ const tenantStore: Record<string, TenantData> = {
   tenant_demo_pizzeria: {
     tenantId: 'tenant_demo_pizzeria',
     name: 'Mi Negocio DanMax WA',
-    activeLineId: 'line_default',
-    lines: [
-      {
-        id: 'line_default',
-        name: 'Línea Principal WhatsApp',
-        whatsappPhone: '+56986176136',
-        status: 'READY',
-        openwaSessionId: 'pizzeria-crm-tenant',
-        createdAt: new Date().toISOString(),
-      },
-    ],
+    activeLineId: null,
+    lines: [], // Starts completely clean (0 demo preloaded lines)
   },
 };
 
@@ -47,17 +38,8 @@ function getOrCreateTenant(tenantId: string = 'tenant_demo_pizzeria'): TenantDat
     tenantStore[tenantId] = {
       tenantId,
       name: 'Mi Negocio DanMax WA',
-      activeLineId: 'line_1',
-      lines: [
-        {
-          id: 'line_1',
-          name: 'Línea WhatsApp Principal',
-          whatsappPhone: null,
-          status: 'DISCONNECTED',
-          openwaSessionId: `session_${tenantId}_line_1`,
-          createdAt: new Date().toISOString(),
-        },
-      ],
+      activeLineId: null,
+      lines: [], // Completely clean 0 default lines
     };
   }
   return tenantStore[tenantId];
@@ -140,13 +122,13 @@ tenantRouter.get('/my-session', async (req: Request, res: Response) => {
         const liveInfo = await OpenWAService.findOrCreateSession(line.openwaSessionId);
         if (liveInfo && (liveInfo.status === 'ready' || liveInfo.status === 'CONNECTED')) {
           line.status = 'READY';
-          line.whatsappPhone = liveInfo.phone || liveInfo.pushName || line.whatsappPhone || '+56986176136';
+          line.whatsappPhone = liveInfo.phone || line.whatsappPhone || '+56986176136';
         }
       } catch (e) {}
     }
   }
 
-  const activeLine = tenant.lines.find((l) => l.id === tenant.activeLineId) || tenant.lines[0];
+  const activeLine = tenant.lines.find((l) => l.id === tenant.activeLineId) || tenant.lines[0] || null;
 
   return res.json({
     success: true,
@@ -157,15 +139,15 @@ tenantRouter.get('/my-session', async (req: Request, res: Response) => {
   });
 });
 
-// POST /api/tenant/add-line (Create a new WhatsApp line with a custom session name)
+// POST /api/tenant/add-line (Create a new WhatsApp line with exact custom session name for OpenWA)
 tenantRouter.post('/add-line', async (req: Request, res: Response) => {
   const { tenantId, name } = req.body;
   const targetTenantId = tenantId || 'tenant_demo_pizzeria';
   const tenant = getOrCreateTenant(targetTenantId);
 
   const customName = name?.trim() || `Línea WhatsApp ${tenant.lines.length + 1}`;
-  const lineId = `line_${Date.now()}`;
-  const openwaSessionId = `sess_${targetTenantId}_${Date.now()}`;
+  const openwaSessionId = OpenWAService.sanitizeSessionName(customName);
+  const lineId = `line_${openwaSessionId}_${Date.now()}`;
 
   const newLine: WhatsAppLine = {
     id: lineId,
@@ -181,13 +163,41 @@ tenantRouter.post('/add-line', async (req: Request, res: Response) => {
 
   return res.json({
     success: true,
-    message: `Línea "${customName}" creada exitosamente`,
+    message: `Línea "${customName}" creada exitosamente (OpenWA Session ID: "${openwaSessionId}")`,
     line: newLine,
     lines: tenant.lines,
   });
 });
 
-// POST /api/tenant/switch-line (Switch active line for multi-session)
+// POST /api/tenant/delete-line (Delete WhatsApp line permanently)
+tenantRouter.post('/delete-line', async (req: Request, res: Response) => {
+  const { tenantId, lineId } = req.body;
+  const targetTenantId = tenantId || 'tenant_demo_pizzeria';
+  const tenant = getOrCreateTenant(targetTenantId);
+
+  const lineIndex = tenant.lines.findIndex((l) => l.id === lineId);
+  if (lineIndex === -1) {
+    return res.status(404).json({ success: false, error: 'Línea de WhatsApp no encontrada' });
+  }
+
+  const [deletedLine] = tenant.lines.splice(lineIndex, 1);
+  if (deletedLine.openwaSessionId) {
+    await OpenWAService.stopSession(deletedLine.openwaSessionId);
+  }
+
+  if (tenant.activeLineId === lineId) {
+    tenant.activeLineId = tenant.lines[0]?.id || null;
+  }
+
+  return res.json({
+    success: true,
+    message: `Línea "${deletedLine.name}" eliminada exitosamente del CRM`,
+    lines: tenant.lines,
+    activeLineId: tenant.activeLineId,
+  });
+});
+
+// POST /api/tenant/switch-line
 tenantRouter.post('/switch-line', (req: Request, res: Response) => {
   const { tenantId, lineId } = req.body;
   const targetTenantId = tenantId || 'tenant_demo_pizzeria';
@@ -208,19 +218,33 @@ tenantRouter.post('/switch-line', (req: Request, res: Response) => {
   });
 });
 
-// POST /api/tenant/connect-whatsapp
+// POST /api/tenant/connect-whatsapp (Start session in OpenWA with exact session name)
 tenantRouter.post('/connect-whatsapp', async (req: Request, res: Response) => {
   const { tenantId, lineId, sessionNameLabel } = req.body;
   const targetTenantId = tenantId || 'tenant_demo_pizzeria';
   const tenant = getOrCreateTenant(targetTenantId);
 
   let line = tenant.lines.find((l) => l.id === (lineId || tenant.activeLineId));
-  if (!line) {
-    line = tenant.lines[0];
-  }
 
-  if (sessionNameLabel?.trim()) {
+  // If no line exists, auto-create line with custom name
+  if (!line) {
+    const customName = sessionNameLabel?.trim() || 'Pizzeria';
+    const openwaSessionId = OpenWAService.sanitizeSessionName(customName);
+    const newLineId = `line_${openwaSessionId}_${Date.now()}`;
+
+    line = {
+      id: newLineId,
+      name: customName,
+      whatsappPhone: null,
+      status: 'DISCONNECTED',
+      openwaSessionId,
+      createdAt: new Date().toISOString(),
+    };
+    tenant.lines.push(line);
+    tenant.activeLineId = newLineId;
+  } else if (sessionNameLabel?.trim()) {
     line.name = sessionNameLabel.trim();
+    line.openwaSessionId = OpenWAService.sanitizeSessionName(sessionNameLabel);
   }
 
   if (!ENV.OPENWA_ADMIN_KEY) {
@@ -276,7 +300,7 @@ tenantRouter.post('/connect-whatsapp', async (req: Request, res: Response) => {
 
   return res.json({
     success: true,
-    message: `Proceso de vinculación iniciado para "${line.name}"`,
+    message: `Proceso de vinculación iniciado para "${line.name}" en OpenWA`,
     sessionStatus: 'SCAN_QR',
     qrCodeUrl: qrUrl,
     line,

@@ -17,17 +17,44 @@ import { socket } from './services/socket';
 import { soundService } from './services/sound';
 
 export const App: React.FC = () => {
-  const [currentTab, setCurrentTab] = useState<string>('landing');
+  // Restore persisted tab or default to 'landing'
+  const [currentTab, setCurrentTab] = useState<string>(() => {
+    return localStorage.getItem('danmax_tab') || 'landing';
+  });
+
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [showRegisterModal, setShowRegisterModal] = useState<boolean>(false);
   const [showLoginModal, setShowLoginModal] = useState<boolean>(false);
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
 
-  const [currentUser, setCurrentUser] = useState<any>({
-    businessName: 'DanMax WA Owner',
-    fullName: 'Super Admin',
-    role: 'SUPER_ADMIN',
+  // Restore persisted user session or null
+  const [currentUser, setCurrentUser] = useState<any>(() => {
+    const savedUser = localStorage.getItem('danmax_user');
+    if (savedUser) {
+      try {
+        return JSON.parse(savedUser);
+      } catch (e) {}
+    }
+    return {
+      businessName: 'DanMax WA Owner',
+      fullName: 'Super Admin',
+      role: 'SUPER_ADMIN',
+    };
   });
+
+  // Persist currentTab on change
+  useEffect(() => {
+    localStorage.setItem('danmax_tab', currentTab);
+  }, [currentTab]);
+
+  // Persist currentUser on change
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('danmax_user', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('danmax_user');
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     socket.on('new_message', (msg: any) => {

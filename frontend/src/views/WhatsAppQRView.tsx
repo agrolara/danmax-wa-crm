@@ -5,12 +5,12 @@ import { QrCode, CheckCircle2, RefreshCw, Smartphone, Server, Wifi, Plus, LogOut
 
 export const WhatsAppQRView: React.FC = () => {
   const [lines, setLines] = useState<any[]>([]);
-  const [activeLineId, setActiveLineId] = useState<string>('line_1');
+  const [activeLineId, setActiveLineId] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
 
   // Form inputs
-  const [sessionNameLabel, setSessionNameLabel] = useState<string>('Línea WhatsApp Principal');
+  const [sessionNameLabel, setSessionNameLabel] = useState<string>('Pizzeria');
   const [newSessionName, setNewSessionName] = useState<string>('');
   const [showAddLineModal, setShowAddLineModal] = useState<boolean>(false);
 
@@ -25,12 +25,18 @@ export const WhatsAppQRView: React.FC = () => {
     try {
       const res = await API.get('/tenant/my-session?tenantId=tenant_demo_pizzeria');
       if (res.data.success) {
-        setLines(res.data.lines || []);
-        setActiveLineId(res.data.activeLineId || res.data.lines[0]?.id);
-        const currentActive = res.data.lines.find((l: any) => l.id === res.data.activeLineId);
-        if (currentActive) {
-          setSessionNameLabel(currentActive.name);
-          setQrCodeUrl(currentActive.qrCodeUrl || null);
+        const fetchedLines = res.data.lines || [];
+        setLines(fetchedLines);
+        if (res.data.activeLineId) {
+          setActiveLineId(res.data.activeLineId);
+          const currentActive = fetchedLines.find((l: any) => l.id === res.data.activeLineId);
+          if (currentActive) {
+            setSessionNameLabel(currentActive.name);
+            setQrCodeUrl(currentActive.qrCodeUrl || null);
+          }
+        } else if (fetchedLines.length > 0) {
+          setActiveLineId(fetchedLines[0].id);
+          setSessionNameLabel(fetchedLines[0].name);
         }
       }
 
@@ -76,11 +82,7 @@ export const WhatsAppQRView: React.FC = () => {
     };
   }, []);
 
-  const activeLine = lines.find((l) => l.id === activeLineId) || lines[0] || {
-    id: 'line_1',
-    name: sessionNameLabel,
-    status: 'DISCONNECTED',
-  };
+  const activeLine = lines.find((l) => l.id === activeLineId) || lines[0] || null;
 
   const handleStartSession = async (lineIdToConnect?: string) => {
     setLoading(true);
@@ -89,20 +91,15 @@ export const WhatsAppQRView: React.FC = () => {
       const res = await API.post('/tenant/connect-whatsapp', {
         tenantId: 'tenant_demo_pizzeria',
         lineId: targetLineId,
-        sessionNameLabel: sessionNameLabel.trim() || 'Línea WhatsApp',
+        sessionNameLabel: sessionNameLabel.trim() || 'Pizzeria',
       });
 
       if (res.data.success) {
+        await fetchTenantSessions();
         if (res.data.sessionStatus === 'READY') {
-          setLines((prev) =>
-            prev.map((l) => (l.id === targetLineId ? { ...l, status: 'READY', whatsappPhone: res.data.whatsappPhone, name: sessionNameLabel } : l))
-          );
           setQrCodeUrl(null);
         } else {
           setQrCodeUrl(res.data.qrCodeUrl);
-          setLines((prev) =>
-            prev.map((l) => (l.id === targetLineId ? { ...l, status: 'SCAN_QR', qrCodeUrl: res.data.qrCodeUrl, name: sessionNameLabel } : l))
-          );
         }
       }
     } catch (err: any) {
@@ -130,6 +127,25 @@ export const WhatsAppQRView: React.FC = () => {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteLine = async (lineId: string) => {
+    if (!confirm('¿Deseas eliminar permanentemente esta línea de WhatsApp de tu panel?')) return;
+
+    try {
+      const res = await API.post('/tenant/delete-line', {
+        tenantId: 'tenant_demo_pizzeria',
+        lineId,
+      });
+
+      if (res.data.success) {
+        setLines(res.data.lines);
+        setActiveLineId(res.data.activeLineId);
+        setQrCodeUrl(null);
+      }
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -261,10 +277,10 @@ export const WhatsAppQRView: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
           <div>
             <h3 style={{ fontSize: '1.2rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Smartphone size={22} color="var(--primary)" /> Líneas de WhatsApp de tu Negocio (Multi-Sesión)
+              <Smartphone size={22} color="var(--primary)" /> Líneas de WhatsApp de tu Negocio ({lines.length} creadas)
             </h3>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '2px' }}>
-              Administra múltiples números de WhatsApp en el mismo panel de control.
+              Crea nombres personalizados para cada línea (OpenWA Session Name) y elimínalas cuando quieras.
             </p>
           </div>
           <button className="btn btn-primary" style={{ padding: '0.5rem 0.85rem', fontSize: '0.85rem' }} onClick={() => setShowAddLineModal(true)}>
@@ -272,67 +288,84 @@ export const WhatsAppQRView: React.FC = () => {
           </button>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1rem' }}>
-          {lines.map((line) => {
-            const isActive = line.id === activeLineId;
-            const isLineConnected = line.status === 'READY';
+        {lines.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '2rem 1rem', background: 'var(--bg-main)', borderRadius: 'var(--radius-md)', border: '1px dashed var(--border-color)' }}>
+            <Smartphone size={40} color="var(--primary)" style={{ opacity: 0.6, marginBottom: '0.5rem' }} />
+            <h4 style={{ fontWeight: 700, fontSize: '0.95rem' }}>Aún no has agregado ninguna línea de WhatsApp</h4>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px', marginBottom: '1rem' }}>
+              Haz clic en "Agregar Nueva Línea" para asignarle un nombre (Ej: Pizzería, Ventas) e iniciar su sesión.
+            </p>
+            <button className="btn btn-primary" style={{ padding: '0.45rem 1rem', fontSize: '0.8rem' }} onClick={() => setShowAddLineModal(true)}>
+              <Plus size={14} /> Agregar Nueva Línea de WhatsApp
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1rem' }}>
+            {lines.map((line) => {
+              const isActive = line.id === activeLineId;
+              const isLineConnected = line.status === 'READY';
 
-            return (
-              <div
-                key={line.id}
-                style={{
-                  background: isActive ? 'rgba(99, 102, 241, 0.12)' : 'var(--bg-main)',
-                  border: isActive ? '2px solid var(--primary)' : '1px solid var(--border-color)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '1rem',
-                  position: 'relative',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                  <span style={{ fontWeight: 800, fontSize: '0.95rem', color: isActive ? 'var(--primary)' : 'var(--text-main)' }}>
-                    🏷️ {line.name}
-                  </span>
-                  <span className={`badge ${isLineConnected ? 'badge-green' : 'badge-amber'}`} style={{ fontSize: '0.7rem' }}>
-                    {isLineConnected ? 'CONECTADO 🟢' : 'DESCONECTADO'}
-                  </span>
-                </div>
-
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-                  {line.whatsappPhone ? `📱 ${line.whatsappPhone}` : 'Sin número vinculado'}
-                </p>
-
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  {!isActive ? (
-                    <button className="btn btn-secondary" style={{ flex: 1, fontSize: '0.75rem', padding: '0.4rem' }} onClick={() => handleSwitchLine(line.id)}>
-                      Seleccionar Línea
-                    </button>
-                  ) : (
-                    <span style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Check size={14} /> Línea Activa
+              return (
+                <div
+                  key={line.id}
+                  style={{
+                    background: isActive ? 'rgba(99, 102, 241, 0.12)' : 'var(--bg-main)',
+                    border: isActive ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '1rem',
+                    position: 'relative',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                    <span style={{ fontWeight: 800, fontSize: '0.95rem', color: isActive ? 'var(--primary)' : 'var(--text-main)' }}>
+                      🏷️ {line.name}
                     </span>
-                  )}
+                    <span className={`badge ${isLineConnected ? 'badge-green' : 'badge-amber'}`} style={{ fontSize: '0.7rem' }}>
+                      {isLineConnected ? 'CONECTADO 🟢' : 'DESCONECTADO'}
+                    </span>
+                  </div>
 
-                  {isLineConnected && (
-                    <button className="btn btn-danger" style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem' }} onClick={() => handleDisconnectSession(line.id)}>
-                      <LogOut size={14} />
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                    {line.whatsappPhone ? `📱 ${line.whatsappPhone}` : 'Sin número vinculado'}
+                  </p>
+
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    {!isActive ? (
+                      <button className="btn btn-secondary" style={{ flex: 1, fontSize: '0.75rem', padding: '0.4rem' }} onClick={() => handleSwitchLine(line.id)}>
+                        Seleccionar Línea
+                      </button>
+                    ) : (
+                      <span style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px', flex: 1 }}>
+                        <Check size={14} /> Línea Activa
+                      </span>
+                    )}
+
+                    {isLineConnected && (
+                      <button className="btn btn-secondary" style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem' }} title="Cerrar Sesión" onClick={() => handleDisconnectSession(line.id)}>
+                        <LogOut size={14} />
+                      </button>
+                    )}
+
+                    <button className="btn btn-danger" style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem' }} title="Eliminar línea permanentemente del CRM" onClick={() => handleDeleteLine(line.id)}>
+                      <Trash2 size={14} />
                     </button>
-                  )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {/* ⚡ Vinculación Autoservicio QR para la Línea Seleccionada */}
+      {/* ⚡ Vinculación Autoservicio QR para la Línea Seleccionada o Nueva */}
       <div className="glass-card">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
           <div>
             <h2 style={{ fontSize: '1.3rem', fontWeight: 800 }}>
-              ⚡ Vincular Línea: <span style={{ color: 'var(--primary)' }}>{activeLine?.name}</span>
+              ⚡ Vincular WhatsApp: <span style={{ color: 'var(--primary)' }}>{activeLine?.name || sessionNameLabel}</span>
             </h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-              Asigna un nombre descriptivo a tu sesión y escanea el código QR desde tu teléfono.
+              El nombre ingresado creará la sesión 1:1 en tu motor de OpenWA API.
             </p>
           </div>
           <span className={`badge ${isConnected ? 'badge-green' : 'badge-amber'}`}>
@@ -344,18 +377,18 @@ export const WhatsAppQRView: React.FC = () => {
         {/* Input para Nombre Identificador de la Sesión */}
         <div style={{ background: 'var(--bg-main)', border: '1px solid var(--border-color)', padding: '1rem', borderRadius: 'var(--radius-md)', marginBottom: '1.5rem' }}>
           <label style={{ fontSize: '0.85rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '6px' }}>
-            <Tag size={16} color="var(--primary)" /> Nombre Identificador de esta Sesión / WhatsApp
+            <Tag size={16} color="var(--primary)" /> Nombre Identificador de la Sesión en OpenWA
           </label>
           <input
             type="text"
             className="chat-input"
             style={{ width: '100%' }}
-            placeholder="Ej: Ventas Sucursal Centro, Atención al Cliente, Línea 2..."
+            placeholder="Ej: Pizzeria, Ventas Online, Soporte..."
             value={sessionNameLabel}
             onChange={(e) => setSessionNameLabel(e.target.value)}
           />
           <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-            Este nombre te permitirá identificar rápidamente a qué número de WhatsApp está conectada esta sesión dentro de tu panel.
+            Este nombre identificará tu sesión directamente en OpenWA API Engine.
           </p>
         </div>
 
@@ -363,13 +396,13 @@ export const WhatsAppQRView: React.FC = () => {
           <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid var(--accent-green)', padding: '1.5rem', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
             <Smartphone size={48} color="var(--accent-green)" style={{ marginBottom: '0.5rem' }} />
             <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--accent-green)' }}>
-              ¡La línea "{activeLine.name}" está Vinculada y Operativa!
+              ¡La línea "{activeLine?.name}" está Vinculada y Operativa!
             </h3>
             <p style={{ marginTop: '0.5rem', fontSize: '0.95rem' }}>
-              Línea activa: <strong>{activeLine.whatsappPhone || '+56986176136'}</strong>
+              Línea activa: <strong>{activeLine?.whatsappPhone || '+56986176136'}</strong>
             </p>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-              Tus chats, grupos y campañas de esta línea están listos para trabajar.
+              Tus chats y grupos de esta línea están sincronizados en el CRM.
             </p>
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginTop: '1.25rem' }}>
               <button className="btn btn-secondary" onClick={() => handleDisconnectSession()} disabled={loading}>
@@ -381,7 +414,7 @@ export const WhatsAppQRView: React.FC = () => {
           <div className="qr-card">
             {qrCodeUrl ? (
               <div>
-                <h4 style={{ fontWeight: 700 }}>Escanea este código QR desde tu teléfono ({activeLine.name}):</h4>
+                <h4 style={{ fontWeight: 700 }}>Escanea este código QR desde tu teléfono ({sessionNameLabel}):</h4>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                   Abre WhatsApp ➔ Dispositivos vinculados ➔ Vincular un dispositivo
                 </p>
@@ -399,7 +432,7 @@ export const WhatsAppQRView: React.FC = () => {
                 <QrCode size={64} color="var(--primary)" style={{ marginBottom: '1rem' }} />
                 <h3>Genera el Código QR para "{sessionNameLabel}"</h3>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-                  Haz clic a continuación para solicitar al servidor de OpenWA el inicio de la sesión con este nombre.
+                  Haz clic a continuación para iniciar la sesión en OpenWA con este nombre exacto.
                 </p>
 
                 <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
@@ -419,18 +452,18 @@ export const WhatsAppQRView: React.FC = () => {
           <div className="glass-card" style={{ width: '400px' }}>
             <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '0.5rem' }}>➕ Conectar Nueva Línea de WhatsApp</h3>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-              Ingresa el nombre identificador para esta nueva sesión de WhatsApp en tu negocio.
+              Ingresa el nombre de la sesión (Ej: Pizzeria, Ventas Online, Soporte).
             </p>
             <form onSubmit={handleCreateNewLine}>
               <div style={{ marginBottom: '1.25rem' }}>
                 <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-                  Nombre de la Línea / Sucursal
+                  Nombre de la Sesión / Línea
                 </label>
                 <input
                   type="text"
                   className="chat-input"
                   style={{ width: '100%' }}
-                  placeholder="Ej: Soporte Técnico, Línea Ventas 2..."
+                  placeholder="Ej: Pizzeria, Ventas Online..."
                   value={newSessionName}
                   onChange={(e) => setNewSessionName(e.target.value)}
                   required
