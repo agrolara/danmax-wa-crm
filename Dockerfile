@@ -1,18 +1,20 @@
 # Stage 1: Build Frontend (Vite + React)
 FROM node:20-alpine AS frontend-builder
 WORKDIR /app/frontend
+ENV NODE_ENV=development
 COPY frontend/package*.json ./
 RUN npm install
 COPY frontend/ ./
-RUN npm run build
+RUN npx tsc && npx vite build
 
 # Stage 2: Build Backend (TypeScript + Express)
 FROM node:20-alpine AS backend-builder
 WORKDIR /app/backend
+ENV NODE_ENV=development
 COPY backend/package*.json ./
 RUN npm install
 COPY backend/ ./
-RUN npm run build
+RUN npx tsc && npx prisma generate
 
 # Stage 3: Production Runtime Environment
 FROM node:20-alpine AS runner
