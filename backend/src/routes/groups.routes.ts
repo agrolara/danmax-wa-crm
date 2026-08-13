@@ -16,23 +16,41 @@ const DEFAULT_STORE: GroupCategoryStore = {
   hiddenGroupIds: [],
 };
 
-// Load persistent data per WhatsApp session / Tenant ID
-function loadGroupStore(phoneOrTenant: string = 'tenant_demo_pizzeria'): GroupCategoryStore {
+const GLOBAL_SESSION_KEY = 'global_whatsapp_line';
+
+// Load persistent data for the WhatsApp session / line
+function loadGroupStore(phoneOrTenant?: string): GroupCategoryStore {
+  const key = phoneOrTenant && phoneOrTenant !== 'undefined' ? phoneOrTenant : GLOBAL_SESSION_KEY;
   const allStores = PersistentStore.readJSON<Record<string, GroupCategoryStore>>('groups_categories.json', {});
-  if (!allStores[phoneOrTenant]) {
-    allStores[phoneOrTenant] = { ...DEFAULT_STORE };
+
+  if (!allStores[key]) {
+    allStores[key] = JSON.parse(JSON.stringify(DEFAULT_STORE));
+    PersistentStore.writeJSON('groups_categories.json', allStores);
   }
-  return allStores[phoneOrTenant];
+
+  // Ensure "Todas" is always present and clean
+  if (!allStores[key].categories.includes('Todas')) {
+    allStores[key].categories.unshift('Todas');
+  }
+
+  return allStores[key];
 }
 
-function saveGroupStore(phoneOrTenant: string = 'tenant_demo_pizzeria', storeData: GroupCategoryStore) {
+function saveGroupStore(phoneOrTenant: string | undefined, storeData: GroupCategoryStore) {
+  const key = phoneOrTenant && phoneOrTenant !== 'undefined' ? phoneOrTenant : GLOBAL_SESSION_KEY;
   const allStores = PersistentStore.readJSON<Record<string, GroupCategoryStore>>('groups_categories.json', {});
-  allStores[phoneOrTenant] = storeData;
+  allStores[key] = storeData;
+
+  // Also sync to global key if specific phone was used
+  if (key !== GLOBAL_SESSION_KEY) {
+    allStores[GLOBAL_SESSION_KEY] = storeData;
+  }
+
   PersistentStore.writeJSON('groups_categories.json', allStores);
 }
 
-async function fetchLiveGroups(sessionName?: string, phoneOrTenant: string = 'tenant_demo_pizzeria') {
-  const store = loadGroupStore(phoneOrTenant);
+async function fetchLiveGroups(sessionName?: string) {
+  const store = loadGroupStore(sessionName);
   const hiddenSet = new Set(store.hiddenGroupIds);
   const liveChats = await OpenWAService.getLiveChats(sessionName);
 
@@ -56,8 +74,8 @@ async function fetchLiveGroups(sessionName?: string, phoneOrTenant: string = 'te
 
 // GET /api/groups
 groupsRouter.get('/', async (req: Request, res: Response) => {
-  const sessionName = (req.query.sessionName as string) || 'tenant_demo_pizzeria';
-  const groups = await fetchLiveGroups(sessionName, sessionName);
+  const sessionName = req.query.sessionName as string;
+  const groups = await fetchLiveGroups(sessionName);
   const store = loadGroupStore(sessionName);
 
   return res.json({
@@ -70,8 +88,8 @@ groupsRouter.get('/', async (req: Request, res: Response) => {
 
 // POST /api/groups/sync (Force re-sync of WhatsApp groups from OpenWA Engine)
 groupsRouter.post('/sync', async (req: Request, res: Response) => {
-  const { sessionName = 'tenant_demo_pizzeria' } = req.body;
-  const groups = await fetchLiveGroups(sessionName, sessionName);
+  const { sessionName } = req.body;
+  const groups = await fetchLiveGroups(sessionName);
   const store = loadGroupStore(sessionName);
 
   return res.json({
@@ -85,7 +103,7 @@ groupsRouter.post('/sync', async (req: Request, res: Response) => {
 
 // POST /api/groups/hide (Delete group ONLY from CRM view)
 groupsRouter.post('/hide', async (req: Request, res: Response) => {
-  const { groupId, sessionName = 'tenant_demo_pizzeria' } = req.body;
+  const { groupId, sessionName } = req.body;
   if (!groupId) {
     return res.status(400).json({ success: false, error: 'groupId es requerido' });
   }
@@ -96,7 +114,7 @@ groupsRouter.post('/hide', async (req: Request, res: Response) => {
     saveGroupStore(sessionName, store);
   }
 
-  const updatedGroups = await fetchLiveGroups(sessionName, sessionName);
+  const updatedGroups = await fetchLiveGroups(sessionName);
 
   return res.json({
     success: true,
@@ -108,7 +126,7 @@ groupsRouter.post('/hide', async (req: Request, res: Response) => {
 
 // POST /api/groups/categories (Persistent user-created categories linked to session/phone)
 groupsRouter.post('/categories', (req: Request, res: Response) => {
-  const { categoryName, sessionName = 'tenant_demo_pizzeria' } = req.body;
+  const { categoryName, sessionName } = req.body;
   const cleanName = categoryName?.trim();
   const store = loadGroupStore(sessionName);
 
@@ -120,13 +138,13 @@ groupsRouter.post('/categories', (req: Request, res: Response) => {
   return res.json({
     success: true,
     categories: Array.from(new Set(['Todas', ...store.categories])),
-    message: 'Nueva categoría creada y guardada de forma persistente',
+    message: 'Nueva categoría creada y guardada de forma 100% permanente',
   });
 });
 
 // DELETE /api/groups/categories (Delete category)
 groupsRouter.delete('/categories', (req: Request, res: Response) => {
-  const { categoryName, sessionName = 'tenant_demo_pizzeria' } = req.body;
+  const { categoryName, sessionName } = req.body;
   const store = loadGroupStore(sessionName);
 
   if (categoryName && categoryName !== 'Todas') {
@@ -143,7 +161,7 @@ groupsRouter.delete('/categories', (req: Request, res: Response) => {
 
 // POST /api/groups/assign-category (Persistent group-to-category mapping)
 groupsRouter.post('/assign-category', (req: Request, res: Response) => {
-  const { groupId, category, sessionName = 'tenant_demo_pizzeria' } = req.body;
+  const { groupId, category, sessionName } = req.body;
   const store = loadGroupStore(sessionName);
 
   if (groupId && category) {
@@ -151,7 +169,7 @@ groupsRouter.post('/assign-category', (req: Request, res: Response) => {
     saveGroupStore(sessionName, store);
   }
 
-  return res.json({ success: true, message: 'Categoría de grupo actualizada y guardada de forma persistente' });
+  return res.json({ success: true, message: 'Categoría de grupo actualizada y guardada de forma permanente' });
 });
 
 // POST /api/groups/broadcast
