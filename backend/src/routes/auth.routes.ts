@@ -141,6 +141,46 @@ authRouter.post('/admin/reject-tenant', (req: Request, res: Response) => {
   return res.json({ success: true, message: 'Acceso rechazado/suspendido' });
 });
 
+// POST /api/auth/admin/delete-tenant (Delete tenant and user account permanently)
+authRouter.post('/admin/delete-tenant', (req: Request, res: Response) => {
+  const { tenantId } = req.body;
+  const index = tenantsDb.findIndex((t) => t.id === tenantId);
+
+  if (index !== -1) {
+    const [deleted] = tenantsDb.splice(index, 1);
+    // Remove users
+    for (let i = usersDb.length - 1; i >= 0; i--) {
+      if (usersDb[i].tenantId === tenantId) {
+        usersDb.splice(i, 1);
+      }
+    }
+    return res.json({ success: true, message: `Registro de "${deleted.name}" eliminado permanentemente.` });
+  }
+
+  return res.status(404).json({ success: false, error: 'Registro no encontrado' });
+});
+
+// POST /api/auth/admin/edit-tenant (Edit business & owner details)
+authRouter.post('/admin/edit-tenant', (req: Request, res: Response) => {
+  const { tenantId, name, ownerName, ownerEmail, status } = req.body;
+  const tenant = tenantsDb.find((t) => t.id === tenantId);
+
+  if (!tenant) {
+    return res.status(404).json({ success: false, error: 'Registro no encontrado' });
+  }
+
+  if (name) tenant.name = name;
+  if (status) tenant.status = status;
+
+  const owner = usersDb.find((u) => u.tenantId === tenantId && u.role === 'TENANT_ADMIN');
+  if (owner) {
+    if (ownerName) owner.fullName = ownerName;
+    if (ownerEmail) owner.email = ownerEmail;
+  }
+
+  return res.json({ success: true, message: `Datos de "${tenant.name}" actualizados correctamente.`, tenant });
+});
+
 // POST /api/auth/login
 authRouter.post('/login', (req: Request, res: Response) => {
   const { email, password } = req.body;

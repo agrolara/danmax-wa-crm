@@ -11,12 +11,10 @@ import {
   Sun,
   ShieldCheck,
   Users,
-  Home,
   UserCheck,
   Crown,
   ChevronLeft,
   ChevronRight,
-  Menu,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -39,7 +37,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setIsCollapsed,
 }) => {
   const menuItems = [
-    { id: 'landing', label: '🌐 Inicio / Landing', icon: Home },
     { id: 'admin', label: '👑 Panel Super Admin', icon: Crown },
     { id: 'qr', label: '📱 Mi WhatsApp', icon: QrCode },
     { id: 'chat', label: 'Bandeja Multi-Agente', icon: MessageSquare },
@@ -65,7 +62,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </button>
 
-      <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+      <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`} style={{ overflowY: 'auto', maxHeight: '100vh' }}>
         <div>
           <div className="brand-header">
             <div className="brand-logo">WA</div>
@@ -96,7 +93,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </ul>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1.5rem' }}>
           <button className="btn btn-secondary" style={{ width: '100%', justifyContent: isCollapsed ? 'center' : 'flex-start' }} onClick={toggleTheme}>
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             {!isCollapsed && <span>{theme === 'dark' ? 'Modo Claro' : 'Modo Oscuro'}</span>}

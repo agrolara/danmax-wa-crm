@@ -10,11 +10,8 @@ export class OpenWAService {
     return ENV.OPENWA_ADMIN_KEY;
   }
 
-  /**
-   * Sanitize session name to valid OpenWA session identifier
-   */
   public static sanitizeSessionName(name: string): string {
-    const clean = name.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    const clean = (name || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
     return clean || `session-${Date.now()}`;
   }
 
@@ -43,14 +40,14 @@ export class OpenWAService {
       console.warn(`[OpenWA Connection Check] ${error.message}`);
       return {
         success: false,
-        error: error.response?.data || error.message,
+        error: error.response?.data?.message || error.message,
         message: 'No se pudo verificar la llave con OpenWA.',
       };
     }
   }
 
   /**
-   * Get all active sessions or session info
+   * Get all active sessions from OpenWA Engine
    */
   public static async getSessions() {
     const url = this.getBaseUrl();
@@ -68,57 +65,69 @@ export class OpenWAService {
   }
 
   /**
-   * Find or inspect session in OpenWA
+   * Find existing session by Name or create a new session in OpenWA (returns UUID object)
    */
   public static async findOrCreateSession(sessionName: string) {
     const url = this.getBaseUrl();
     const key = this.getAdminKey();
-    const cleanName = this.sanitizeSessionName(sessionName);
+    const cleanName = sessionName.trim();
 
     try {
       const sessions = await this.getSessions();
       const existing = sessions.find(
         (s: any) =>
-          s.id === cleanName ||
-          s.name === cleanName ||
-          s.sessionId === cleanName ||
-          s.id === sessionName ||
-          s.name === sessionName
+          s.name?.toLowerCase() === cleanName.toLowerCase() ||
+          s.id === cleanName
       );
 
       if (existing) {
         return {
-          id: existing.id || existing.name || cleanName,
+          id: existing.id, // UUID expected by OpenWA NestJS API
           name: existing.name || cleanName,
-          status: existing.status || 'READY',
+          status: existing.status || 'STOPPED',
           phone: existing.phone || existing.me || null,
         };
       }
 
+      // Create new session in OpenWA to get UUID
+      const createRes = await axios.post(
+        `${url}/api/sessions`,
+        { name: cleanName },
+        {
+          headers: { 'X-API-Key': key, 'Content-Type': 'application/json' },
+          timeout: 10000,
+        }
+      );
+
+      const createdObj = createRes.data?.data || createRes.data;
       return {
-        id: cleanName,
-        name: cleanName,
-        status: 'DISCONNECTED',
-        phone: null,
+        id: createdObj?.id || cleanName,
+        name: createdObj?.name || cleanName,
+        status: createdObj?.status || 'STOPPED',
+        phone: createdObj?.phone || null,
       };
     } catch (error: any) {
+      console.warn(`[OpenWA findOrCreateSession Warning]: ${error.message}`);
       return { id: cleanName, name: cleanName, status: 'DISCONNECTED', phone: null };
     }
   }
 
   /**
-   * Start a new session in OpenWA with exact session name
+   * Start a session in OpenWA using its valid UUID
    */
   public static async startSession(sessionName: string) {
     const url = this.getBaseUrl();
     const key = this.getAdminKey();
-    const cleanName = this.sanitizeSessionName(sessionName);
 
     try {
-      console.log(`[OpenWA] Starting session with name: "${cleanName}"...`);
+      const sessionObj = await this.findOrCreateSession(sessionName);
+      const uuid = sessionObj.id;
+
+      console.log(`[OpenWA] Starting session "${sessionName}" (UUID: ${uuid})...`);
+
       const startRes = await axios.post(
-        `${url}/api/sessions/${cleanName}/start`,
-        { name: cleanName },
+        `${url}/api/sessions/${uuid}/start`,
+        {},
         {
           headers: { 'X-API-Key': key, 'Content-Type': 'application/json' },
           timeout: 20000,
@@ -128,16 +137,17 @@ export class OpenWAService {
       if (startRes.data?.status === 'ready' || startRes.data?.status === 'CONNECTED') {
         return {
           success: true,
-          sessionId: cleanName,
+          sessionId: uuid,
+          sessionName,
           status: 'READY',
           me: startRes.data?.phone || startRes.data?.me,
-          message: `Sesión "${cleanName}" conectada y lista`,
+          message: `Sesión "${sessionName}" conectada y lista`,
         };
       }
 
       let qrCode = null;
       try {
-        const qrRes = await axios.get(`${url}/api/sessions/${cleanName}/qr`, {
+        const qrRes = await axios.get(`${url}/api/sessions/${uuid}/qr`, {
           headers: { 'X-API-Key': key },
           timeout: 8000,
         });
@@ -158,7 +168,8 @@ export class OpenWAService {
 
       return {
         success: true,
-        sessionId: cleanName,
+        sessionId: uuid,
+        sessionName,
         status: 'SCAN_QR',
         qrCode: formattedQrCode,
         raw: startRes.data,
@@ -173,16 +184,16 @@ export class OpenWAService {
   }
 
   /**
-   * Stop/delete a session in OpenWA
+   * Stop/delete a session in OpenWA using its valid UUID
    */
   public static async stopSession(sessionName: string) {
     const url = this.getBaseUrl();
     const key = this.getAdminKey();
-    const cleanName = this.sanitizeSessionName(sessionName);
 
     try {
+      const sessionObj = await this.findOrCreateSession(sessionName);
       await axios.post(
-        `${url}/api/sessions/${cleanName}/stop`,
+        `${url}/api/sessions/${sessionObj.id}/stop`,
         {},
         {
           headers: { 'X-API-Key': key },
@@ -196,7 +207,7 @@ export class OpenWAService {
   }
 
   /**
-   * Fetch all live active chats for a session from OpenWA
+   * Fetch all live active chats for a session from OpenWA (GET /api/sessions/:uuid/chats)
    */
   public static async getLiveChats(sessionName?: string) {
     const url = this.getBaseUrl();
@@ -204,17 +215,22 @@ export class OpenWAService {
 
     try {
       const sessions = await this.getSessions();
-      let targetSessionId = sessionName ? this.sanitizeSessionName(sessionName) : null;
+      let targetUuid: string | null = null;
 
-      if (!targetSessionId && sessions.length > 0) {
-        targetSessionId = sessions[0].id || sessions[0].name;
+      if (sessionName) {
+        const found = sessions.find((s: any) => s.name?.toLowerCase() === sessionName.toLowerCase() || s.id === sessionName);
+        if (found) targetUuid = found.id;
       }
 
-      if (!targetSessionId) {
+      if (!targetUuid && sessions.length > 0) {
+        targetUuid = sessions[0].id;
+      }
+
+      if (!targetUuid) {
         return { success: true, chats: [] };
       }
 
-      const res = await axios.get(`${url}/api/sessions/${targetSessionId}/chats`, {
+      const res = await axios.get(`${url}/api/sessions/${targetUuid}/chats`, {
         headers: { 'X-API-Key': key },
         timeout: 10000,
       });
@@ -229,7 +245,7 @@ export class OpenWAService {
 
       return {
         success: true,
-        sessionId: targetSessionId,
+        sessionId: targetUuid,
         chats: chatsData,
       };
     } catch (error: any) {
@@ -239,18 +255,19 @@ export class OpenWAService {
   }
 
   /**
-   * Send text message via OpenWA
+   * Send text message via OpenWA using session UUID
    */
   public static async sendMessage(sessionName: string, apiKey: string, to: string, text: string) {
     const url = this.getBaseUrl();
     const key = apiKey || this.getAdminKey();
-    const cleanName = this.sanitizeSessionName(sessionName);
 
     try {
+      const sessionObj = await this.findOrCreateSession(sessionName);
+      const uuid = sessionObj.id;
       const cleanTo = to.includes('@') ? to : to.replace(/[^0-9]/g, '') + '@c.us';
 
       const response = await axios.post(
-        `${url}/api/sessions/${cleanName}/message/text`,
+        `${url}/api/sessions/${uuid}/message/text`,
         { to: cleanTo, text },
         {
           headers: {

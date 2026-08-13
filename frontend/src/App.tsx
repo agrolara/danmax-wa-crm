@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
-import { LandingPage } from './views/LandingPage';
 import { RegisterModal } from './components/RegisterModal';
 import { LoginModal } from './components/LoginModal';
 import { SuperAdminView } from './views/SuperAdminView';
@@ -17,9 +16,10 @@ import { socket } from './services/socket';
 import { soundService } from './services/sound';
 
 export const App: React.FC = () => {
-  // Restore persisted tab or default to 'landing'
+  // Restore persisted tab or default to 'qr'
   const [currentTab, setCurrentTab] = useState<string>(() => {
-    return localStorage.getItem('danmax_tab') || 'landing';
+    const saved = localStorage.getItem('danmax_tab');
+    return saved && saved !== 'landing' ? saved : 'qr';
   });
 
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -42,12 +42,10 @@ export const App: React.FC = () => {
     };
   });
 
-  // Persist currentTab on change
   useEffect(() => {
     localStorage.setItem('danmax_tab', currentTab);
   }, [currentTab]);
 
-  // Persist currentUser on change
   useEffect(() => {
     if (currentUser) {
       localStorage.setItem('danmax_user', JSON.stringify(currentUser));
@@ -87,28 +85,6 @@ export const App: React.FC = () => {
       setCurrentTab('qr');
     }
   };
-
-  if (currentTab === 'landing') {
-    return (
-      <>
-        <LandingPage
-          onOpenRegister={() => setShowRegisterModal(true)}
-          onOpenLogin={() => setShowLoginModal(true)}
-          onGoToDashboard={() => setCurrentTab('qr')}
-        />
-        <RegisterModal
-          isOpen={showRegisterModal}
-          onClose={() => setShowRegisterModal(false)}
-          onSuccess={handleRegisterSuccess}
-        />
-        <LoginModal
-          isOpen={showLoginModal}
-          onClose={() => setShowLoginModal(false)}
-          onSuccess={handleLoginSuccess}
-        />
-      </>
-    );
-  }
 
   const renderContent = () => {
     switch (currentTab) {
@@ -179,9 +155,6 @@ export const App: React.FC = () => {
         <header className="topbar">
           <h1 className="topbar-title">{getTabTitle()}</h1>
           <div className="topbar-actions">
-            <button className="btn btn-secondary" onClick={() => setCurrentTab('landing')}>
-              🌐 Ver Landing Page
-            </button>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <img
                 src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100"
