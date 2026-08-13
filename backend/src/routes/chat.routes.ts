@@ -3,26 +3,33 @@ import { OpenWAService } from '../services/openwa.service';
 
 export const chatRouter = Router();
 
+// Storage for agent chat assignments
+const chatAgentMap: Record<string, string> = {};
+
 function formatPhoneNumber(chatObj: any): string {
   const rawId = chatObj.id || '';
   const rawName = chatObj.name || '';
 
-  // 1. If name contains a phone number (e.g. "+56 9 9108 8424")
-  if (rawName.startsWith('+') || /^\+?[0-9\s-]{8,}$/.test(rawName)) {
+  // 1. If name starts with + or is a phone number (e.g. "+56 9 5178 2341")
+  if (rawName.startsWith('+') || /^\+?[0-9\s-]{8,}$/.test(rawName.trim())) {
     return rawName.startsWith('+') ? rawName : `+${rawName}`;
   }
 
-  // 2. If ID is standard @c.us phone ID (e.g. "56986176136@c.us")
+  // 2. If ID is standard @c.us phone ID (e.g. "56951782341@c.us")
   if (rawId.includes('@c.us') || /^[0-9]{8,}@/.test(rawId)) {
     const digits = rawId.replace(/[^0-9]/g, '');
     return digits ? `+${digits}` : rawId;
   }
 
-  // 3. Fallback for @lid privacy identifiers
+  // 3. If ID is @lid, display LID ID cleanly without prepending a fake "+"
+  if (rawId.includes('@lid')) {
+    return `ID WhatsApp: ${rawId}`;
+  }
+
   return rawName || `Contacto ${rawId.replace(/@.*/, '')}`;
 }
 
-// GET /api/chats (Fetch live chats from connected OpenWA session, return [] if none)
+// GET /api/chats (Fetch live chats from connected OpenWA session)
 chatRouter.get('/', async (req: Request, res: Response) => {
   const sessionName = req.query.sessionName as string;
 
@@ -40,6 +47,7 @@ chatRouter.get('/', async (req: Request, res: Response) => {
 
         const contactName = c.name || `Cliente ${c.id.replace(/@.*/, '')}`;
         const phone = formatPhoneNumber(c);
+        const assignedAgent = chatAgentMap[c.id] || null;
 
         return {
           id: c.id,
@@ -47,7 +55,7 @@ chatRouter.get('/', async (req: Request, res: Response) => {
           contactName,
           phone,
           avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-          assignedAgent: 'Agente Ventas',
+          assignedAgent,
           lastMessageText: typeof lastMsgText === 'string' ? lastMsgText : 'Mensaje recibido',
           lastMessageAt: formattedTime,
           unreadCount: c.unreadCount || 0,
@@ -69,6 +77,27 @@ chatRouter.get('/', async (req: Request, res: Response) => {
   return res.json({
     success: true,
     chats: [],
+  });
+});
+
+// POST /api/chats/assign-agent (Assign sales representative / agent to a chat)
+chatRouter.post('/assign-agent', (req: Request, res: Response) => {
+  const { chatId, agentName } = req.body;
+  if (!chatId) {
+    return res.status(400).json({ success: false, error: 'chatId es requerido' });
+  }
+
+  if (agentName) {
+    chatAgentMap[chatId] = agentName;
+  } else {
+    delete chatAgentMap[chatId];
+  }
+
+  return res.json({
+    success: true,
+    message: agentName ? `Chat asignado exitosamente a "${agentName}"` : 'Chat desasignado',
+    chatId,
+    assignedAgent: agentName || null,
   });
 });
 

@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { API } from '../services/api';
 import { socket } from '../services/socket';
-import { Send, UserCheck, Search, Paperclip, FileText, Image as ImageIcon, CheckCheck } from 'lucide-react';
+import { Send, UserCheck, Search, Paperclip, CheckCheck, UserPlus, Shield } from 'lucide-react';
 
 export const ChatInboxView: React.FC = () => {
   const [chats, setChats] = useState<any[]>([]);
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [inputText, setInputText] = useState<string>('');
   const [filter, setFilter] = useState<'all' | 'mine' | 'unassigned'>('all');
+  const [assigning, setAssigning] = useState<boolean>(false);
 
   const fetchChats = async () => {
     try {
@@ -17,6 +19,11 @@ export const ChatInboxView: React.FC = () => {
         if (res.data.chats.length > 0 && !activeChatId) {
           setActiveChatId(res.data.chats[0].id);
         }
+      }
+
+      const resTeam = await API.get('/team?tenantId=tenant_demo_pizzeria');
+      if (resTeam.data.success) {
+        setTeamMembers(resTeam.data.team || []);
       }
     } catch (err) {
       console.error('Error fetching chats:', err);
@@ -49,6 +56,22 @@ export const ChatInboxView: React.FC = () => {
 
   const activeChat = chats.find((c) => c.id === activeChatId);
 
+  const handleAssignAgent = async (chatId: string, agentName: string) => {
+    setAssigning(true);
+    try {
+      const res = await API.post('/chats/assign-agent', { chatId, agentName });
+      if (res.data.success) {
+        setChats((prev) =>
+          prev.map((c) => (c.id === chatId ? { ...c, assignedAgent: agentName || null } : c))
+        );
+      }
+    } catch (err) {
+      console.error('Error assigning agent:', err);
+    } finally {
+      setAssigning(false);
+    }
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim() || !activeChatId) return;
@@ -60,7 +83,7 @@ export const ChatInboxView: React.FC = () => {
       await API.post('/chats/send', {
         chatId: activeChatId,
         tenantId: 'tenant_demo_pizzeria',
-        text: textToSend,
+        content: textToSend,
       });
     } catch (err) {
       console.error('Error sending message:', err);
@@ -68,7 +91,7 @@ export const ChatInboxView: React.FC = () => {
   };
 
   const filteredChats = chats.filter((c) => {
-    if (filter === 'mine') return c.assignedAgent === 'Juan Vendedor';
+    if (filter === 'mine') return c.assignedAgent === 'Super Admin' || c.assignedAgent === 'Juan Vendedor';
     if (filter === 'unassigned') return !c.assignedAgent;
     return true;
   });
@@ -121,7 +144,7 @@ export const ChatInboxView: React.FC = () => {
                 </div>
                 <div className="chat-last-msg">{chat.lastMessageText}</div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px' }}>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ fontSize: '0.7rem', color: chat.assignedAgent ? 'var(--primary)' : 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
                     <UserCheck size={12} /> {chat.assignedAgent || 'Sin asignar'}
                   </span>
                   {chat.unreadCount > 0 && (
@@ -146,8 +169,32 @@ export const ChatInboxView: React.FC = () => {
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{activeChat.phone}</div>
                 </div>
               </div>
+
+              {/* Selector Interactivo de Asignación de Vendedor */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span className="badge badge-blue">Agente: {activeChat.assignedAgent || 'No asignado'}</span>
+                <UserPlus size={16} color="var(--primary)" />
+                <select
+                  className="chat-input"
+                  style={{
+                    fontSize: '0.8rem',
+                    padding: '4px 10px',
+                    fontWeight: 700,
+                    background: activeChat.assignedAgent ? 'rgba(99, 102, 241, 0.15)' : 'var(--bg-main)',
+                    color: activeChat.assignedAgent ? 'var(--primary)' : 'var(--text-muted)',
+                    border: '1px solid var(--border-color)',
+                  }}
+                  value={activeChat.assignedAgent || ''}
+                  onChange={(e) => handleAssignAgent(activeChat.id, e.target.value)}
+                  disabled={assigning}
+                >
+                  <option value="">-- Sin Vendedor Asignado --</option>
+                  <option value="Super Admin DanMax WA">👤 Super Admin DanMax WA</option>
+                  {teamMembers.map((m) => (
+                    <option key={m.id} value={m.fullName || m.name}>
+                      👤 {m.fullName || m.name} ({m.role || 'Vendedor'})
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
