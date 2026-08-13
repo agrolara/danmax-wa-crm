@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { LandingPage } from './views/LandingPage';
 import { RegisterModal } from './components/RegisterModal';
@@ -13,18 +13,33 @@ import { TeamView } from './views/TeamView';
 import { TemplatesView } from './views/TemplatesView';
 import { MediaCatalogView } from './views/MediaCatalogView';
 import { AnalyticsView } from './views/AnalyticsView';
+import { socket } from './services/socket';
+import { soundService } from './services/sound';
 
 export const App: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<string>('landing');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [showRegisterModal, setShowRegisterModal] = useState<boolean>(false);
   const [showLoginModal, setShowLoginModal] = useState<boolean>(false);
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
 
   const [currentUser, setCurrentUser] = useState<any>({
     businessName: 'DanMax WA Owner',
     fullName: 'Super Admin',
     role: 'SUPER_ADMIN',
   });
+
+  useEffect(() => {
+    socket.on('new_message', (msg: any) => {
+      if (msg?.direction === 'INBOUND' || !msg?.direction) {
+        soundService.playIncomingSound();
+      }
+    });
+
+    return () => {
+      socket.off('new_message');
+    };
+  }, []);
 
   const toggleTheme = () => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark';
@@ -40,9 +55,9 @@ export const App: React.FC = () => {
   const handleLoginSuccess = (user: any) => {
     setCurrentUser(user);
     if (user.role === 'SUPER_ADMIN') {
-      setCurrentTab('admin'); // Redirect Super Admin directly to control panel
+      setCurrentTab('admin');
     } else {
-      setCurrentTab('qr'); // Redirect Client Tenant to their WhatsApp QR view
+      setCurrentTab('qr');
     }
   };
 
@@ -130,6 +145,8 @@ export const App: React.FC = () => {
         theme={theme}
         toggleTheme={toggleTheme}
         businessName={currentUser?.businessName || 'DanMax WA'}
+        isCollapsed={isCollapsed}
+        setIsCollapsed={setIsCollapsed}
       />
       <main className="main-content">
         <header className="topbar">

@@ -10,15 +10,15 @@ let groupCategoriesMap: Record<string, string> = {
   '120363040673899979@g.us': 'Grupos Vecinales',
 };
 
-// GET /api/groups
-groupsRouter.get('/', async (req: Request, res: Response) => {
-  const sessionName = 'pizzeria-crm-tenant';
+// Hidden groups map (CRM local deletion only)
+const hiddenGroupIdsSet: Set<string> = new Set();
 
+async function fetchLiveGroups(sessionName: string = 'pizzeria-crm-tenant') {
   const liveChats = await OpenWAService.getLiveChats(sessionName);
 
   if (liveChats.success && liveChats.chats.length > 0) {
-    const groups = liveChats.chats
-      .filter((c: any) => c.isGroup)
+    return liveChats.chats
+      .filter((c: any) => c.isGroup && !hiddenGroupIdsSet.has(c.id))
       .map((g: any) => ({
         id: g.id,
         name: g.name || 'Grupo sin nombre',
@@ -27,32 +27,54 @@ groupsRouter.get('/', async (req: Request, res: Response) => {
         timestamp: g.timestamp ? new Date(g.timestamp * 1000).toISOString() : new Date().toISOString(),
         lastMessage: typeof g.lastMessage === 'string' ? g.lastMessage : g.lastMessage?.body || 'Mensaje de grupo',
       }));
-
-    return res.json({ success: true, groups, categories: groupCategoriesList, total: groups.length });
   }
+  return [];
+}
+
+// GET /api/groups
+groupsRouter.get('/', async (req: Request, res: Response) => {
+  const sessionName = 'pizzeria-crm-tenant';
+  const groups = await fetchLiveGroups(sessionName);
 
   return res.json({
     success: true,
-    groups: [
-      {
-        id: '120363047285645104@g.us',
-        name: '𝐐𝐔𝐈𝐋𝐈𝐂𝐔𝐑𝐀 𝐕𝐄𝐍𝐃𝐄',
-        category: groupCategoriesMap['120363047285645104@g.us'] || 'Ventas Directas',
-        unreadCount: 18,
-        timestamp: new Date().toISOString(),
-        lastMessage: 'Por si alguien está interesado en promociones',
-      },
-      {
-        id: '120363040673899979@g.us',
-        name: 'Ventas con entrega en Quilicura y Valle Grande. 🛒📦',
-        category: groupCategoriesMap['120363040673899979@g.us'] || 'Grupos Vecinales',
-        unreadCount: 5,
-        timestamp: new Date().toISOString(),
-        lastMessage: 'Promoción especial disponible',
-      },
-    ],
+    groups,
     categories: groupCategoriesList,
-    total: 2,
+    total: groups.length,
+  });
+});
+
+// POST /api/groups/sync (Force re-sync of WhatsApp groups from OpenWA Engine)
+groupsRouter.post('/sync', async (req: Request, res: Response) => {
+  const sessionName = 'pizzeria-crm-tenant';
+  const groups = await fetchLiveGroups(sessionName);
+
+  return res.json({
+    success: true,
+    message: `Sincronización completada. ${groups.length} grupos encontrados.`,
+    groups,
+    categories: groupCategoriesList,
+    total: groups.length,
+  });
+});
+
+// POST /api/groups/hide (Delete group ONLY from CRM view, preserving actual WhatsApp group)
+groupsRouter.post('/hide', async (req: Request, res: Response) => {
+  const { groupId } = req.body;
+  if (!groupId) {
+    return res.status(400).json({ success: false, error: 'groupId es requerido' });
+  }
+
+  hiddenGroupIdsSet.add(groupId);
+
+  const sessionName = 'pizzeria-crm-tenant';
+  const updatedGroups = await fetchLiveGroups(sessionName);
+
+  return res.json({
+    success: true,
+    message: 'Grupo eliminado únicamente del CRM DanMax WA.',
+    groups: updatedGroups,
+    total: updatedGroups.length,
   });
 });
 
@@ -83,7 +105,6 @@ groupsRouter.post('/broadcast', async (req: Request, res: Response) => {
     return res.status(400).json({ success: false, error: 'Debes seleccionar al menos un grupo e ingresar el mensaje' });
   }
 
-  // Build full formatted WhatsApp message
   let compiledFullMessage = '';
   if (headerText) compiledFullMessage += `*${headerText.toUpperCase()}*\n\n`;
   compiledFullMessage += messageText;
@@ -94,7 +115,7 @@ groupsRouter.post('/broadcast', async (req: Request, res: Response) => {
   for (const groupId of groupIds) {
     const resSend = await OpenWAService.sendMessage(
       sessionName,
-      'op_key_pizzeria_abc123',
+      '',
       groupId,
       compiledFullMessage
     );
@@ -103,7 +124,7 @@ groupsRouter.post('/broadcast', async (req: Request, res: Response) => {
 
   return res.json({
     success: true,
-    message: `¡Difusión Rica enviada con éxito a ${groupIds.length} grupos de WhatsApp!`,
+    message: `¡Difusión enviada con éxito a ${groupIds.length} grupos de WhatsApp!`,
     results,
   });
 });

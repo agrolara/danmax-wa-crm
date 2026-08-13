@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { API } from '../services/api';
-import { Users, Search, Send, CheckSquare, Square, Zap, RefreshCw, CheckCircle2, Folder, Plus, Tag, X, FileText, Image as ImageIcon, Video, File, Eye, Upload, Link as LinkIcon } from 'lucide-react';
+import { Users, Search, Send, CheckSquare, Square, Zap, RefreshCw, CheckCircle2, Folder, Plus, Tag, X, FileText, Image as ImageIcon, Video, File, Eye, Upload, Link as LinkIcon, Trash2 } from 'lucide-react';
 
 export const GroupsView: React.FC = () => {
   const [groups, setGroups] = useState<any[]>([]);
@@ -9,6 +9,7 @@ export const GroupsView: React.FC = () => {
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeCategory, setActiveCategory] = useState<string>('Todas');
+  const [syncing, setSyncing] = useState<boolean>(false);
 
   // Rich Broadcast Form State
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
@@ -52,6 +53,43 @@ export const GroupsView: React.FC = () => {
   useEffect(() => {
     fetchGroupsAndTemplates();
   }, []);
+
+  const handleSyncGroups = async () => {
+    setSyncing(true);
+    setStatusNotification(null);
+    try {
+      const res = await API.post('/groups/sync');
+      if (res.data.success) {
+        setGroups(res.data.groups);
+        if (res.data.categories) setCategories(res.data.categories);
+        setStatusNotification(res.data.message || 'Sincronización de grupos realizada con éxito.');
+        setTimeout(() => setStatusNotification(null), 4000);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleHideGroupFromCRM = async (e: React.MouseEvent, groupId: string) => {
+    e.stopPropagation();
+    if (!confirm('¿Deseas eliminar este grupo ÚNICAMENTE de la vista del CRM? (El grupo real en WhatsApp no se verá afectado).')) {
+      return;
+    }
+
+    try {
+      const res = await API.post('/groups/hide', { groupId });
+      if (res.data.success) {
+        setGroups(res.data.groups);
+        setSelectedGroupIds((prev) => prev.filter((id) => id !== groupId));
+        setStatusNotification('Grupo eliminado de la vista del CRM.');
+        setTimeout(() => setStatusNotification(null), 3000);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const handleGroupFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -168,7 +206,7 @@ export const GroupsView: React.FC = () => {
             👥 Grupos de WhatsApp & Difusiones Ricas ({groups.length} detectados)
           </h2>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Selecciona plantillas o sube archivos adjuntos locales (Imágenes, Videos, PDF) para transmitir difusiones masivas.
+            Sincroniza tus grupos desde WhatsApp o elimina aquellos que no desees ver en el CRM.
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -176,8 +214,8 @@ export const GroupsView: React.FC = () => {
             <Plus size={16} /> Crear Categoría
           </button>
 
-          <button className="btn btn-secondary" onClick={fetchGroupsAndTemplates}>
-            <RefreshCw size={14} /> Actualizar Grupos
+          <button className="btn btn-secondary" onClick={handleSyncGroups} disabled={syncing}>
+            <RefreshCw size={14} className={syncing ? 'spin' : ''} /> {syncing ? 'Sincronizando...' : 'Actualizar Grupos'}
           </button>
         </div>
       </div>
@@ -262,194 +300,203 @@ export const GroupsView: React.FC = () => {
                 />
               </div>
 
-              {/* Selector de Adjunto: Subir Archivo Local vs URL */}
               <div>
-                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '4px' }}>
+                <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>Pie de Firma / Empresa (Opcional)</label>
+                <input
+                  type="text"
+                  className="chat-input"
+                  style={{ width: '100%' }}
+                  placeholder="Ej: DanMax WA - Soluciones Comerciales"
+                  value={footerText}
+                  onChange={(e) => setFooterText(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
+                  Tipo de Archivo Adjunto (Imágenes, Videos, PDF)
+                </label>
+                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
                   <button
                     type="button"
-                    className={`btn btn-secondary ${mediaMode === 'UPLOAD' ? 'active' : ''}`}
-                    style={{ padding: '2px 8px', fontSize: '0.7rem', background: mediaMode === 'UPLOAD' ? 'var(--primary)' : 'var(--bg-main)', color: mediaMode === 'UPLOAD' ? 'white' : 'var(--text-muted)' }}
+                    className={`btn ${mediaMode === 'UPLOAD' ? 'btn-primary' : 'btn-secondary'}`}
+                    style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem' }}
                     onClick={() => setMediaMode('UPLOAD')}
                   >
-                    <Upload size={12} /> Subir Archivo de PC
+                    <Upload size={14} /> 📁 Subir Archivo de PC
                   </button>
-
                   <button
                     type="button"
-                    className={`btn btn-secondary ${mediaMode === 'URL' ? 'active' : ''}`}
-                    style={{ padding: '2px 8px', fontSize: '0.7rem', background: mediaMode === 'URL' ? 'var(--primary)' : 'var(--bg-main)', color: mediaMode === 'URL' ? 'white' : 'var(--text-muted)' }}
+                    className={`btn ${mediaMode === 'URL' ? 'btn-primary' : 'btn-secondary'}`}
+                    style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem' }}
                     onClick={() => setMediaMode('URL')}
                   >
-                    <LinkIcon size={12} /> Pegar URL / Enlace
+                    <LinkIcon size={14} /> 🌐 Pegar Enlace / URL
                   </button>
                 </div>
 
                 {mediaMode === 'UPLOAD' ? (
-                  <div
-                    onClick={() => groupFileInputRef.current?.click()}
-                    style={{
-                      border: '1px dashed var(--primary-glow)',
-                      borderRadius: 'var(--radius-md)',
-                      padding: '0.65rem',
-                      textAlign: 'center',
-                      cursor: 'pointer',
-                      background: 'rgba(99, 102, 241, 0.05)',
-                    }}
-                  >
+                  <div>
                     <input
-                      ref={groupFileInputRef}
                       type="file"
-                      accept="image/*,video/*,.pdf"
+                      ref={groupFileInputRef}
                       style={{ display: 'none' }}
+                      accept="image/*,video/*,application/pdf"
                       onChange={handleGroupFileUpload}
                     />
-                    <Upload size={18} color="var(--primary)" style={{ margin: '0 auto 2px auto' }} />
-                    <div style={{ fontSize: '0.75rem', fontWeight: 600 }}>
-                      {uploadedFileName ? `Adjunto: ${uploadedFileName}` : 'Clic para seleccionar Imagen, PDF o Video'}
-                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ width: '100%', justifyContent: 'center', borderStyle: 'dashed' }}
+                      onClick={() => groupFileInputRef.current?.click()}
+                    >
+                      <Upload size={16} /> {uploadedFileName ? `Adjunto: ${uploadedFileName}` : 'Seleccionar Imagen, Video o Documento...'}
+                    </button>
                   </div>
                 ) : (
                   <input
-                    type="text"
+                    type="url"
                     className="chat-input"
                     style={{ width: '100%' }}
-                    placeholder="https://..."
+                    placeholder="https://ejemplo.com/imagen.jpg"
                     value={mediaUrl}
                     onChange={(e) => setMediaUrl(e.target.value)}
                   />
                 )}
               </div>
 
-              <div>
-                <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>Pie de Página / Firma (Opcional)</label>
-                <input
-                  type="text"
-                  className="chat-input"
-                  style={{ width: '100%' }}
-                  placeholder="Ej: DanMax WA • Pedidos"
-                  value={footerText}
-                  onChange={(e) => setFooterText(e.target.value)}
-                />
-              </div>
-
               <button type="submit" className="btn btn-primary" style={{ marginTop: '0.25rem', padding: '0.65rem' }} disabled={sending}>
-                {sending ? <RefreshCw size={16} className="spin" /> : <Send size={16} />}
-                {sending ? 'Enviando difusión a grupos...' : `Enviar Difusión Masiva a ${selectedGroupIds.length} Grupos`}
+                <Send size={16} /> {sending ? 'Transmitiendo...' : `Transmitir Mensaje a ${selectedGroupIds.length} Grupos`}
               </button>
             </div>
 
-            {/* Vista Previa de la Difusión Rica */}
-            <div style={{ background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '0.85rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-              <div>
-                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-dim)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Eye size={12} /> Vista Previa del Mensaje Rico
-                </div>
-
-                {mediaUrl && (
-                  <div style={{ fontSize: '0.75rem', color: 'var(--accent-blue)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <File size={12} /> Adjunto: {uploadedFileName || 'Archivo Adjunto'}
-                  </div>
-                )}
-
-                {headerText && (
-                  <div style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--primary)', marginBottom: '4px' }}>
-                    {headerText.toUpperCase()}
-                  </div>
-                )}
-
-                <div className="msg-bubble outbound" style={{ width: '100%', fontSize: '0.8rem' }}>
-                  {broadcastMessage || 'Escribe el mensaje explicativo para ver la vista previa...'}
-                  {footerText && (
-                    <div style={{ fontSize: '0.68rem', opacity: 0.8, borderTop: '1px solid rgba(255,255,255,0.2)', paddingTop: '4px', marginTop: '6px', fontStyle: 'italic' }}>
-                      {footerText}
+            {/* Vista Previa Formato WhatsApp Burbuja Completa */}
+            <div>
+              <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
+                👁️ Vista Previa Burbuja WhatsApp Real (Sin Recortes)
+              </label>
+              <div style={{ background: '#0b141a', borderRadius: '12px', padding: '12px', minHeight: '230px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <div style={{ background: '#005c4b', borderRadius: '8px', padding: '10px', color: '#e9edef', fontSize: '0.85rem', maxWidth: '100%' }}>
+                  {mediaUrl && (
+                    <div style={{ marginBottom: '8px', width: '100%', maxHeight: '180px', overflow: 'hidden', borderRadius: '6px', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {mediaUrl.startsWith('data:video') || mediaUrl.endsWith('.mp4') ? (
+                        <video src={mediaUrl} controls style={{ width: '100%', maxHeight: '180px', objectFit: 'contain' }} />
+                      ) : (
+                        <img src={mediaUrl} alt="Adjunto" style={{ width: '100%', maxHeight: '180px', objectFit: 'contain' }} />
+                      )}
                     </div>
                   )}
+
+                  {headerText && <div style={{ fontWeight: 800, fontSize: '0.9rem', marginBottom: '4px' }}>{headerText.toUpperCase()}</div>}
+                  <div style={{ whiteSpace: 'pre-wrap' }}>{broadcastMessage || 'Tu texto explicativo aparecerá aquí...'}</div>
+                  {footerText && <div style={{ fontSize: '0.75rem', opacity: 0.8, fontStyle: 'italic', marginTop: '6px', borderTop: '1px solid rgba(255,255,255,0.2)', paddingTop: '4px' }}>{footerText}</div>}
                 </div>
-              </div>
-              <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)', textAlign: 'center', marginTop: '0.5rem' }}>
-                Formato WhatsApp Multi-Media
               </div>
             </div>
           </form>
         </div>
       )}
 
-      {/* Bar de Búsqueda y Selección */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '0.5rem 1rem', width: '340px' }}>
-          <Search size={16} color="var(--text-dim)" />
+      {/* Barra de Búsqueda y Selección Masiva */}
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', alignItems: 'center' }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '0.5rem 0.75rem' }}>
+          <Search size={18} color="var(--text-dim)" />
           <input
             type="text"
-            placeholder="Buscar grupos por nombre..."
-            style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', outline: 'none', marginLeft: '0.5rem', fontSize: '0.85rem', width: '100%' }}
+            placeholder="Buscar grupo por nombre..."
+            style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', outline: 'none', marginLeft: '0.5rem', width: '100%', fontSize: '0.875rem' }}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
 
-        <button className="btn btn-secondary" style={{ fontSize: '0.8rem' }} onClick={handleSelectAll}>
-          {selectedGroupIds.length === filteredGroups.length ? <CheckSquare size={14} /> : <Square size={14} />}
-          {selectedGroupIds.length === filteredGroups.length ? 'Desmarcar Todos' : `Seleccionar Todos (${filteredGroups.length})`}
+        <button className="btn btn-secondary" onClick={handleSelectAll} style={{ fontSize: '0.85rem' }}>
+          {selectedGroupIds.length === filteredGroups.length && filteredGroups.length > 0 ? <CheckSquare size={16} color="var(--primary)" /> : <Square size={16} />}
+          <span>{selectedGroupIds.length === filteredGroups.length && filteredGroups.length > 0 ? 'Deseleccionar Todos' : 'Seleccionar Todos'}</span>
         </button>
       </div>
 
-      {/* Grid de Grupos Estilo OpenWA */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem' }}>
-        {filteredGroups.map((group) => {
-          const isSelected = selectedGroupIds.includes(group.id);
-          return (
-            <div
-              key={group.id}
-              className={`glass-card ${isSelected ? 'active' : ''}`}
-              style={{
-                cursor: 'pointer',
-                border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border-color)',
-                background: isSelected ? 'rgba(99, 102, 241, 0.12)' : 'var(--bg-card)',
-                transition: 'all 0.2s ease',
-              }}
-              onClick={() => handleToggleSelect(group.id)}
-            >
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <div style={{ width: '38px', height: '38px', borderRadius: 'var(--radius-md)', background: 'linear-gradient(135deg, var(--accent-blue), var(--primary))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 800 }}>
-                    👥
+      {/* Grid de Tarjetas de Grupos */}
+      {filteredGroups.length === 0 ? (
+        <div className="glass-card" style={{ textAlign: 'center', padding: '3rem 1.5rem' }}>
+          <Users size={48} color="var(--primary)" style={{ marginBottom: '1rem', opacity: 0.7 }} />
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 800 }}>No se encontraron grupos en el CRM</h3>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px', marginBottom: '1rem' }}>
+            Presiona "Actualizar Grupos" para sincronizar automáticamente los grupos donde está unida tu sesión de WhatsApp.
+          </p>
+          <button className="btn btn-primary" onClick={handleSyncGroups} disabled={syncing}>
+            <RefreshCw size={16} className={syncing ? 'spin' : ''} /> {syncing ? 'Sincronizando...' : 'Actualizar Grupos'}
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+          {filteredGroups.map((group) => {
+            const isSelected = selectedGroupIds.includes(group.id);
+            return (
+              <div
+                key={group.id}
+                className={`glass-card ${isSelected ? 'active' : ''}`}
+                style={{
+                  cursor: 'pointer',
+                  border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                  background: isSelected ? 'rgba(99, 102, 241, 0.12)' : 'var(--bg-card)',
+                  transition: 'all 0.2s ease',
+                  position: 'relative',
+                }}
+                onClick={() => handleToggleSelect(group.id)}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ width: '38px', height: '38px', borderRadius: 'var(--radius-md)', background: 'linear-gradient(135deg, var(--accent-blue), var(--primary))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 800 }}>
+                      👥
+                    </div>
+                    <div>
+                      <h4 style={{ fontWeight: 700, fontSize: '0.9rem', maxWidth: '160px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {group.name}
+                      </h4>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>ID: {group.id.split('@')[0]}</span>
+                    </div>
                   </div>
-                  <div>
-                    <h4 style={{ fontWeight: 700, fontSize: '0.9rem', maxWidth: '180px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {group.name}
-                    </h4>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>ID: {group.id.split('@')[0]}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    {isSelected ? <CheckSquare size={20} color="var(--primary)" /> : <Square size={20} color="var(--text-dim)" />}
+                    <button
+                      className="btn btn-secondary"
+                      style={{ padding: '4px 6px', color: 'var(--accent-rose)' }}
+                      title="Eliminar grupo únicamente del CRM"
+                      onClick={(e) => handleHideGroupFromCRM(e, group.id)}
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 </div>
-                {isSelected ? <CheckSquare size={20} color="var(--primary)" /> : <Square size={20} color="var(--text-dim)" />}
-              </div>
 
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', background: 'var(--bg-main)', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', marginBottom: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                💬 {group.lastMessage}
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }} onClick={(e) => e.stopPropagation()}>
-                  <Tag size={12} color="var(--primary)" />
-                  <select
-                    style={{ background: 'var(--bg-main)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', fontSize: '0.75rem', outline: 'none', fontWeight: 600 }}
-                    value={group.category}
-                    onChange={(e) => handleAssignCategory(group.id, e.target.value)}
-                  >
-                    {categories.map((cat) => (
-                      <option key={cat} value={cat}>
-                        Categoría: {cat}
-                      </option>
-                    ))}
-                  </select>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', background: 'var(--bg-main)', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', marginBottom: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  💬 {group.lastMessage}
                 </div>
 
-                <span className="badge badge-amber">{group.unreadCount} no leídos</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }} onClick={(e) => e.stopPropagation()}>
+                    <Tag size={12} color="var(--primary)" />
+                    <select
+                      style={{ background: 'var(--bg-main)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', fontSize: '0.75rem', outline: 'none', fontWeight: 600 }}
+                      value={group.category}
+                      onChange={(e) => handleAssignCategory(group.id, e.target.value)}
+                    >
+                      {categories.map((cat) => (
+                        <option key={cat} value={cat}>
+                          Categoría: {cat}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <span className="badge badge-amber">{group.unreadCount} no leídos</span>
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Modal Crear Nueva Categoría */}
       {showCategoryModal && (

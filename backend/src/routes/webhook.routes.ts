@@ -3,52 +3,68 @@ import { socketService } from '../services/socket.service';
 
 export const webhookRouter = Router();
 
-// POST /api/webhooks/whatsapp
-webhookRouter.post('/whatsapp', (req: Request, res: Response) => {
-  const event = req.body;
+function handleIncomingWebhook(req: Request, res: Response) {
+  const event = req.body || {};
   console.log('📩 [OpenWA Webhook Received]:', JSON.stringify(event, null, 2));
 
-  // Extract session ID and event payload
-  const sessionId = event.sessionId || event.session || 'tenant_demo_pizzeria';
-  const tenantId = sessionId.replace('tenant_', '').split('_')[0];
+  const payload = event.data || event;
+  const targetTenantId = 'tenant_demo_pizzeria';
 
-  const eventType = event.event || event.type || 'message';
+  const eventType = event.event || event.type || (payload.body ? 'message' : 'generic');
 
   switch (eventType) {
     case 'qr':
     case 'qr_code':
-      socketService.emitToTenant(tenantId, 'whatsapp_qr', {
+    case 'onQrCode':
+      socketService.emitToTenant(targetTenantId, 'whatsapp_qr', {
         status: 'SCAN_QR',
-        qrCodeUrl: event.qr || event.data,
+        qrCodeUrl: payload.qr || payload.qrCode || event.qr,
       });
       break;
 
     case 'ready':
     case 'authenticated':
-      socketService.emitToTenant(tenantId, 'whatsapp_status', {
+    case 'onStateChanged':
+      socketService.emitToTenant(targetTenantId, 'whatsapp_status', {
         status: 'READY',
-        whatsappPhone: event.me || event.phone || '+56912345678',
+        whatsappPhone: payload.me || payload.phone || '+56986176136',
       });
       break;
 
     case 'message':
     case 'onMessage':
-      socketService.emitToTenant(tenantId, 'new_message', {
-        chatId: event.from || 'chat_001',
+    case 'message.create':
+      const fromContact = payload.from || payload.chatId || event.from || 'contact_wa';
+      const msgBody = payload.body || payload.content || event.body || 'Mensaje recibido de WhatsApp';
+      const senderName = payload.pushname || payload.sender?.name || payload.name || `Cliente ${fromContact.replace(/@.*/, '')}`;
+
+      const newMessagePayload = {
+        chatId: fromContact,
+        tenantId: targetTenantId,
+        contactName: senderName,
+        phone: fromContact.includes('@') ? `+${fromContact.replace(/@.*/, '')}` : fromContact,
+        direction: 'INBOUND',
         message: {
-          id: event.id || `msg_in_${Date.now()}`,
+          id: payload.id || `msg_in_${Date.now()}`,
           direction: 'INBOUND',
-          content: event.body || event.content || 'Mensaje de WhatsApp',
+          content: typeof msgBody === 'string' ? msgBody : 'Mensaje multimedia',
           sentAt: new Date().toISOString(),
           status: 'DELIVERED',
         },
-      });
+      };
+
+      // Broadcast live message event to socket clients
+      socketService.emitToTenant(targetTenantId, 'new_message', newMessagePayload);
       break;
 
     default:
-      socketService.emitToTenant(tenantId, 'webhook_event', event);
+      socketService.emitToTenant(targetTenantId, 'webhook_event', event);
       break;
   }
 
   return res.json({ status: 'SUCCESS', receivedAt: new Date().toISOString() });
-});
+}
+
+// Handle POST /api/webhooks/whatsapp and /api/webhooks/openwa
+webhookRouter.post('/whatsapp', handleIncomingWebhook);
+webhookRouter.post('/openwa', handleIncomingWebhook);

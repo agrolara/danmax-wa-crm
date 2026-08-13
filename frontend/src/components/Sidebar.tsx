@@ -14,6 +14,9 @@ import {
   Home,
   UserCheck,
   Crown,
+  ChevronLeft,
+  ChevronRight,
+  Menu,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -22,6 +25,8 @@ interface SidebarProps {
   theme: string;
   toggleTheme: () => void;
   businessName?: string;
+  isCollapsed: boolean;
+  setIsCollapsed: (collapsed: boolean) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -29,7 +34,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setCurrentTab,
   theme,
   toggleTheme,
-  businessName = 'Pizzeria Don Luigi',
+  businessName = 'DanMax WA',
+  isCollapsed,
+  setIsCollapsed,
 }) => {
   const menuItems = [
     { id: 'landing', label: '🌐 Inicio / Landing', icon: Home },
@@ -46,45 +53,63 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   return (
-    <aside className="sidebar">
-      <div>
-        <div className="brand-header">
-          <div className="brand-logo">WA</div>
-          <div>
-            <div className="brand-name">DanMax WA</div>
-            <div className="tenant-badge">{businessName}</div>
+    <>
+      {/* ↔️ Botón Franja Vertical Extendida a todo el Costado de la Pantalla */}
+      <button
+        className="sidebar-toggle-edge"
+        title={isCollapsed ? 'Desplegar Menú Lateral' : 'Colapsar Menú Lateral'}
+        onClick={() => setIsCollapsed(!isCollapsed)}
+      >
+        <div className="edge-icon-pill">
+          {isCollapsed ? <ChevronRight size={18} color="white" /> : <ChevronLeft size={18} color="white" />}
+        </div>
+      </button>
+
+      <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+        <div>
+          <div className="brand-header">
+            <div className="brand-logo">WA</div>
+            {!isCollapsed && (
+              <div>
+                <div className="brand-name">DanMax WA</div>
+                <div className="tenant-badge">{businessName}</div>
+              </div>
+            )}
           </div>
+
+          <ul className="nav-list">
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = currentTab === item.id;
+              return (
+                <li
+                  key={item.id}
+                  className={`nav-item ${isActive ? 'active' : ''}`}
+                  onClick={() => setCurrentTab(item.id)}
+                  title={isCollapsed ? item.label : undefined}
+                >
+                  <Icon size={18} />
+                  {!isCollapsed && <span>{item.label}</span>}
+                </li>
+              );
+            })}
+          </ul>
         </div>
 
-        <ul className="nav-list">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = currentTab === item.id;
-            return (
-              <li
-                key={item.id}
-                className={`nav-item ${isActive ? 'active' : ''}`}
-                onClick={() => setCurrentTab(item.id)}
-              >
-                <Icon size={18} />
-                <span>{item.label}</span>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <button className="btn btn-secondary" style={{ width: '100%', justifyContent: isCollapsed ? 'center' : 'flex-start' }} onClick={toggleTheme}>
+            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+            {!isCollapsed && <span>{theme === 'dark' ? 'Modo Claro' : 'Modo Oscuro'}</span>}
+          </button>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        <button className="btn btn-secondary" style={{ width: '100%' }} onClick={toggleTheme}>
-          {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-          <span>{theme === 'dark' ? 'Modo Claro' : 'Modo Oscuro'}</span>
-        </button>
-
-        <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-          <ShieldCheck size={14} color="var(--accent-green)" />
-          <span>OpenWA Engine Active</span>
+          {!isCollapsed && (
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+              <ShieldCheck size={14} color="var(--accent-green)" />
+              <span>OpenWA Engine Active</span>
+            </div>
+          )}
         </div>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 };
