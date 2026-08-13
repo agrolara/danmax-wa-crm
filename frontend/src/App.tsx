@@ -95,7 +95,7 @@ export const App: React.FC = () => {
       case 'chat':
         return <ChatInboxView />;
       case 'kanban':
-        return <KanbanPipelineView />;
+        return <KanbanPipelineView setCurrentTab={setCurrentTab} />;
       case 'groups':
         return <GroupsView />;
       case 'calendar':

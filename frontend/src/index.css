@@ -506,3 +506,112 @@ body {
     grid-template-columns: repeat(1, 1fr) !important;
   }
 }
+
+/* Google Calendar Style Grid Layout */
+.calendar-view {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.calendar-month-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+}
+
+.calendar-grid-header {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  background: var(--bg-card-solid);
+  border: 1px solid var(--border-color);
+  border-top-left-radius: var(--radius-md);
+  border-top-right-radius: var(--radius-md);
+  border-bottom: 2px solid var(--primary-glow);
+}
+
+.calendar-day-head {
+  padding: 0.75rem 0.5rem;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  border-right: 1px solid var(--border-color);
+}
+.calendar-day-head:last-child {
+  border-right: none;
+}
+
+.calendar-grid-body {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border-left: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  border-bottom-left-radius: var(--radius-md);
+  border-bottom-right-radius: var(--radius-md);
+  background: var(--bg-main);
+}
+
+.calendar-cell {
+  min-height: 110px;
+  padding: 0.5rem;
+  border-right: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-card);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  transition: background 0.2s;
+  cursor: pointer;
+}
+
+.calendar-cell:hover {
+  background: var(--bg-hover);
+}
+
+.calendar-cell.other-month {
+  opacity: 0.35;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.calendar-cell.today {
+  background: rgba(99, 102, 241, 0.15);
+  border: 2px solid var(--primary);
+}
+
+.calendar-day-number {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--text-main);
+  align-self: flex-end;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.calendar-cell.today .calendar-day-number {
+  background: var(--primary);
+  color: white;
+}
+
+.calendar-event-pill {
+  background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+  color: white;
+  padding: 3px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+

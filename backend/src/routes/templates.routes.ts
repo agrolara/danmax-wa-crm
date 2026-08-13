@@ -4,36 +4,8 @@ export const templatesRouter = Router();
 
 export let categoriesDb: string[] = ['General', 'Ventas', 'Promociones', 'Operaciones', 'Atención al Cliente'];
 
-export let templatesDb: any[] = [
-  {
-    id: 'tmpl_rich_01',
-    tenantId: 'tenant_demo_pizzeria',
-    isGlobal: false,
-    title: '🍕 Promo Combo Pizzería con PDF Catálogo',
-    category: 'Promociones',
-    headerType: 'IMAGE', // IMAGE, VIDEO, DOCUMENT, TEXT
-    headerContent: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=800',
-    content: '¡Hola {{nombre}}! Disfruta de nuestro combo familiar con 2 Pizzas Medianas + Bebida 1.5L. Adjuntamos nuestro catálogo oficial en PDF.',
-    footer: 'Pizzería Don Luigi • Pide al +56986176136',
-    variables: ['nombre'],
-    mediaUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'tmpl_rich_02',
-    tenantId: null,
-    isGlobal: true,
-    title: '🎬 Lanzamiento de Producto & Video',
-    category: 'Ventas',
-    headerType: 'VIDEO',
-    headerContent: 'https://www.w3schools.com/html/mov_bbb.mp4',
-    content: '¡Estimado cliente! Te invitamos a conocer el nuevo servicio de automatizaciones WhatsApp de DanMax WA.',
-    footer: 'DanMax WA • Plataforma SaaS Marca Blanca',
-    variables: [],
-    mediaUrl: null,
-    createdAt: new Date().toISOString(),
-  },
-];
+// Clean 0 demo templates (starts completely empty)
+export let templatesDb: any[] = [];
 
 // GET /api/templates
 templatesRouter.get('/', (req: Request, res: Response) => {
