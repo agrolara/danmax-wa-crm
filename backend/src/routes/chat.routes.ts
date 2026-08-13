@@ -3,8 +3,9 @@ import { OpenWAService } from '../services/openwa.service';
 
 export const chatRouter = Router();
 
-// Storage for agent chat assignments
+// Storage for agent chat assignments and custom contact names
 const chatAgentMap: Record<string, string> = {};
+const contactNameMap: Record<string, string> = {};
 
 function formatPhoneNumber(chatObj: any): string {
   const rawId = chatObj.id || '';
@@ -48,7 +49,8 @@ chatRouter.get('/', async (req: Request, res: Response) => {
           ? new Date(c.timestamp * 1000).toISOString()
           : new Date().toISOString();
 
-        const contactName = c.name || `Cliente ${c.id.replace(/@.*/, '')}`;
+        // Persistent custom contact name OR default name from WhatsApp
+        const contactName = contactNameMap[c.id] || c.name || `Cliente ${c.id.replace(/@.*/, '')}`;
         const phone = formatPhoneNumber(c);
         const assignedAgent = chatAgentMap[c.id] || null;
 
@@ -83,6 +85,24 @@ chatRouter.get('/', async (req: Request, res: Response) => {
   });
 });
 
+// POST /api/chats/update-contact-name (Renames and saves contact persistently)
+chatRouter.post('/update-contact-name', (req: Request, res: Response) => {
+  const { chatId, contactName } = req.body;
+  if (!chatId || !contactName) {
+    return res.status(400).json({ success: false, error: 'chatId y contactName son requeridos' });
+  }
+
+  const cleanName = contactName.trim();
+  contactNameMap[chatId] = cleanName;
+
+  return res.json({
+    success: true,
+    message: `Contacto agendado como "${cleanName}"`,
+    chatId,
+    contactName: cleanName,
+  });
+});
+
 // POST /api/chats/assign-agent (Assign sales representative / agent to a chat)
 chatRouter.post('/assign-agent', (req: Request, res: Response) => {
   const { chatId, agentName } = req.body;
@@ -104,6 +124,28 @@ chatRouter.post('/assign-agent', (req: Request, res: Response) => {
   });
 });
 
+// POST /api/chats/broadcast-contacts (Send mass broadcast message to multiple selected contacts)
+chatRouter.post('/broadcast-contacts', async (req: Request, res: Response) => {
+  const { chatIds, messageText, sessionName } = req.body;
+  const targetSession = sessionName || 'ventas-online';
+
+  if (!chatIds || !Array.isArray(chatIds) || chatIds.length === 0 || !messageText) {
+    return res.status(400).json({ success: false, error: 'Debes seleccionar al menos un contacto e ingresar el mensaje' });
+  }
+
+  const results = [];
+  for (const cid of chatIds) {
+    const resSend = await OpenWAService.sendMessage(targetSession, '', cid, messageText);
+    results.push({ chatId: cid, status: resSend.status });
+  }
+
+  return res.json({
+    success: true,
+    message: `¡Difusión masiva enviada a ${chatIds.length} contactos de WhatsApp!`,
+    results,
+  });
+});
+
 // POST /api/chats/send (Send message via OpenWA live session)
 chatRouter.post('/send', async (req: Request, res: Response) => {
   const { chatId, text, content, sessionName } = req.body;
@@ -113,8 +155,6 @@ chatRouter.post('/send', async (req: Request, res: Response) => {
   if (!chatId || !textToSend) {
     return res.status(400).json({ success: false, error: 'chatId y contenido del mensaje son requeridos' });
   }
-
-  console.log(`[Chat Router Send Request] chatId: ${chatId}, session: ${targetSession}, content: "${textToSend}"`);
 
   const sendResult: any = await OpenWAService.sendMessage(targetSession, '', chatId, textToSend);
 

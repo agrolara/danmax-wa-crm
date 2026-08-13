@@ -4,7 +4,7 @@ import { Users, Search, Send, CheckSquare, Square, Zap, RefreshCw, CheckCircle2,
 
 export const GroupsView: React.FC = () => {
   const [groups, setGroups] = useState<any[]>([]);
-  const [categories, setCategories] = useState<string[]>(['Ventas Directas', 'Grupos Vecinales', 'General']);
+  const [categories, setCategories] = useState<string[]>(['Todas']);
   const [templates, setTemplates] = useState<any[]>([]);
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API } from '../services/api';
 import { socket } from '../services/socket';
-import { Send, UserCheck, Search, Paperclip, CheckCheck, UserPlus, Shield } from 'lucide-react';
+import { Send, UserCheck, Search, Paperclip, CheckCheck, UserPlus, Edit2, Check, X, Send as SendIcon, CheckSquare, Square } from 'lucide-react';
 
 export const ChatInboxView: React.FC = () => {
   const [chats, setChats] = useState<any[]>([]);
@@ -10,6 +10,18 @@ export const ChatInboxView: React.FC = () => {
   const [inputText, setInputText] = useState<string>('');
   const [filter, setFilter] = useState<'all' | 'mine' | 'unassigned'>('all');
   const [assigning, setAssigning] = useState<boolean>(false);
+
+  // Contact Renaming state
+  const [editingName, setEditingName] = useState<boolean>(false);
+  const [customNameInput, setCustomNameInput] = useState<string>('');
+
+  // Multi-Select Contact Broadcast State
+  const [multiSelectMode, setMultiSelectMode] = useState<boolean>(false);
+  const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
+  const [showBroadcastModal, setShowBroadcastModal] = useState<boolean>(false);
+  const [broadcastMessage, setBroadcastMessage] = useState<string>('');
+  const [sendingBroadcast, setSendingBroadcast] = useState<boolean>(false);
+  const [broadcastStatus, setBroadcastStatus] = useState<string | null>(null);
 
   const fetchChats = async () => {
     try {
@@ -72,6 +84,26 @@ export const ChatInboxView: React.FC = () => {
     }
   };
 
+  const handleSaveContactName = async () => {
+    if (!activeChat || !customNameInput.trim()) return;
+
+    try {
+      const res = await API.post('/chats/update-contact-name', {
+        chatId: activeChat.id,
+        contactName: customNameInput.trim(),
+      });
+
+      if (res.data.success) {
+        setChats((prev) =>
+          prev.map((c) => (c.id === activeChat.id ? { ...c, contactName: customNameInput.trim() } : c))
+        );
+        setEditingName(false);
+      }
+    } catch (err) {
+      console.error('Error updating contact name:', err);
+    }
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim() || !activeChatId) return;
@@ -90,8 +122,51 @@ export const ChatInboxView: React.FC = () => {
     }
   };
 
+  const toggleSelectContact = (chatId: string) => {
+    setSelectedContactIds((prev) =>
+      prev.includes(chatId) ? prev.filter((id) => id !== chatId) : [...prev, chatId]
+    );
+  };
+
+  const handleSelectAllContacts = () => {
+    if (selectedContactIds.length === filteredChats.length) {
+      setSelectedContactIds([]);
+    } else {
+      setSelectedContactIds(filteredChats.map((c) => c.id));
+    }
+  };
+
+  const handleSendMassBroadcast = async () => {
+    if (selectedContactIds.length === 0 || !broadcastMessage.trim()) return;
+    setSendingBroadcast(true);
+    setBroadcastStatus(null);
+
+    try {
+      const res = await API.post('/chats/broadcast-contacts', {
+        chatIds: selectedContactIds,
+        messageText: broadcastMessage.trim(),
+      });
+
+      if (res.data.success) {
+        setBroadcastStatus(`¡Mensaje masivo enviado a ${selectedContactIds.length} contactos!`);
+        setTimeout(() => {
+          setShowBroadcastModal(false);
+          setBroadcastMessage('');
+          setSelectedContactIds([]);
+          setMultiSelectMode(false);
+          setBroadcastStatus(null);
+        }, 2000);
+      }
+    } catch (err) {
+      console.error('Error sending broadcast:', err);
+      setBroadcastStatus('Error enviando mensaje masivo');
+    } finally {
+      setSendingBroadcast(false);
+    }
+  };
+
   const filteredChats = chats.filter((c) => {
-    if (filter === 'mine') return c.assignedAgent === 'Super Admin' || c.assignedAgent === 'Juan Vendedor';
+    if (filter === 'mine') return c.assignedAgent === 'Super Admin DanMax WA' || c.assignedAgent === 'Juan Vendedor';
     if (filter === 'unassigned') return !c.assignedAgent;
     return true;
   });
@@ -109,7 +184,8 @@ export const ChatInboxView: React.FC = () => {
               style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', outline: 'none', marginLeft: '0.5rem', fontSize: '0.85rem', width: '100%' }}
             />
           </div>
-          <div style={{ display: 'flex', gap: '0.25rem' }}>
+
+          <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '0.5rem' }}>
             <button
               className={`btn btn-secondary ${filter === 'all' ? 'active' : ''}`}
               style={{ flex: 1, padding: '0.35rem', fontSize: '0.75rem' }}
@@ -125,15 +201,62 @@ export const ChatInboxView: React.FC = () => {
               Sin Asignar
             </button>
           </div>
+
+          {/* Botón de Modo Selección Masiva de Contactos */}
+          <div style={{ display: 'flex', gap: '0.25rem' }}>
+            <button
+              className={`btn ${multiSelectMode ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ flex: 1, padding: '0.4rem', fontSize: '0.75rem', justifyContent: 'center' }}
+              onClick={() => {
+                setMultiSelectMode(!multiSelectMode);
+                if (multiSelectMode) setSelectedContactIds([]);
+              }}
+            >
+              {multiSelectMode ? <CheckSquare size={14} /> : <Square size={14} />}
+              <span>{multiSelectMode ? 'Cancelar Selección' : '☑️ Selección Masiva'}</span>
+            </button>
+            {multiSelectMode && selectedContactIds.length > 0 && (
+              <button
+                className="btn btn-success"
+                style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem' }}
+                onClick={() => setShowBroadcastModal(true)}
+              >
+                <SendIcon size={12} /> ({selectedContactIds.length}) Enviar
+              </button>
+            )}
+          </div>
         </div>
+
+        {multiSelectMode && (
+          <div style={{ padding: '0.5rem 1rem', background: 'rgba(99, 102, 241, 0.1)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem' }}>
+            <span>{selectedContactIds.length} contactos seleccionados</span>
+            <button className="btn btn-secondary" style={{ padding: '2px 8px', fontSize: '0.7rem' }} onClick={handleSelectAllContacts}>
+              {selectedContactIds.length === filteredChats.length ? 'Desmarcar Todos' : 'Marcar Todos'}
+            </button>
+          </div>
+        )}
 
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {filteredChats.map((chat) => (
             <div
               key={chat.id}
               className={`chat-item ${activeChatId === chat.id ? 'active' : ''}`}
-              onClick={() => setActiveChatId(chat.id)}
+              onClick={() => {
+                if (multiSelectMode) {
+                  toggleSelectContact(chat.id);
+                } else {
+                  setActiveChatId(chat.id);
+                }
+              }}
             >
+              {multiSelectMode && (
+                <input
+                  type="checkbox"
+                  checked={selectedContactIds.includes(chat.id)}
+                  onChange={() => toggleSelectContact(chat.id)}
+                  style={{ marginRight: '0.5rem', cursor: 'pointer' }}
+                />
+              )}
               <img src={chat.avatarUrl} alt={chat.contactName} className="chat-avatar" />
               <div className="chat-info">
                 <div className="chat-name">
@@ -165,7 +288,40 @@ export const ChatInboxView: React.FC = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <img src={activeChat.avatarUrl} alt={activeChat.contactName} className="chat-avatar" />
                 <div>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>{activeChat.contactName}</h3>
+                  {editingName ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <input
+                        type="text"
+                        className="chat-input"
+                        style={{ fontSize: '0.9rem', padding: '2px 8px' }}
+                        value={customNameInput}
+                        onChange={(e) => setCustomNameInput(e.target.value)}
+                        placeholder="Nombre de contacto..."
+                        autoFocus
+                      />
+                      <button className="btn btn-primary" style={{ padding: '4px 8px' }} onClick={handleSaveContactName}>
+                        <Check size={14} />
+                      </button>
+                      <button className="btn btn-secondary" style={{ padding: '4px 8px' }} onClick={() => setEditingName(false)}>
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>{activeChat.contactName}</h3>
+                      <button
+                        className="btn btn-secondary"
+                        style={{ padding: '2px 6px', fontSize: '0.7rem' }}
+                        title="Agendar / Cambiar Nombre de Contacto"
+                        onClick={() => {
+                          setCustomNameInput(activeChat.contactName || '');
+                          setEditingName(true);
+                        }}
+                      >
+                        <Edit2 size={12} /> <span>Agendar Nombre</span>
+                      </button>
+                    </div>
+                  )}
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{activeChat.phone}</div>
                 </div>
               </div>
@@ -246,6 +402,52 @@ export const ChatInboxView: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Modal de Difusión Masiva a Contactos Personales */}
+      {showBroadcastModal && (
+        <div className="modal-backdrop">
+          <div className="glass-card modal-content" style={{ maxWidth: '520px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <SendIcon size={20} color="var(--primary)" />
+                <span>Difusión Masiva a {selectedContactIds.length} Contactos Seleccionados</span>
+              </h3>
+              <button className="btn btn-secondary" style={{ padding: '4px 8px' }} onClick={() => setShowBroadcastModal(false)}>
+                <X size={16} />
+              </button>
+            </div>
+
+            {broadcastStatus && (
+              <div style={{ padding: '0.75rem', background: 'rgba(16, 185, 129, 0.2)', color: 'var(--accent-green)', borderRadius: 'var(--radius-md)', marginBottom: '1rem', fontWeight: 600, fontSize: '0.85rem' }}>
+                {broadcastStatus}
+              </div>
+            )}
+
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.4rem', fontWeight: 600 }}>
+                Mensaje para enviar a todos los contactos seleccionados:
+              </label>
+              <textarea
+                className="chat-input"
+                rows={5}
+                style={{ width: '100%', resize: 'vertical' }}
+                placeholder="Escribe tu oferta, información o saludo masivo aquí..."
+                value={broadcastMessage}
+                onChange={(e) => setBroadcastMessage(e.target.value)}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              <button className="btn btn-secondary" onClick={() => setShowBroadcastModal(false)}>
+                Cancelar
+              </button>
+              <button className="btn btn-primary" onClick={handleSendMassBroadcast} disabled={sendingBroadcast || !broadcastMessage.trim()}>
+                {sendingBroadcast ? 'Enviando Mensajes...' : `Enviar a ${selectedContactIds.length} Contactos`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

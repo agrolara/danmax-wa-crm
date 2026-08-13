@@ -3,12 +3,10 @@ import { OpenWAService } from '../services/openwa.service';
 
 export const groupsRouter = Router();
 
-export let groupCategoriesList: string[] = ['Ventas Directas', 'Grupos Vecinales', 'General'];
+// Clean starting categories (Only 'Todas', 0 demo pre-established categories)
+export let groupCategoriesList: string[] = ['Todas'];
 
-let groupCategoriesMap: Record<string, string> = {
-  '120363047285645104@g.us': 'Ventas Directas',
-  '120363040673899979@g.us': 'Grupos Vecinales',
-};
+let groupCategoriesMap: Record<string, string> = {};
 
 // Hidden groups map (CRM local deletion only)
 const hiddenGroupIdsSet: Set<string> = new Set();
@@ -26,7 +24,7 @@ async function fetchLiveGroups(sessionName?: string) {
         id: g.id,
         name: g.name || 'Grupo sin nombre',
         unreadCount: g.unreadCount || 0,
-        category: groupCategoriesMap[g.id] || 'General',
+        category: groupCategoriesMap[g.id] || 'Todas',
         timestamp: g.timestamp ? new Date(g.timestamp * 1000).toISOString() : new Date().toISOString(),
         lastMessage: typeof g.lastMessage === 'string' ? g.lastMessage : g.lastMessage?.body || 'Mensaje de grupo',
       }));
@@ -61,7 +59,7 @@ groupsRouter.post('/sync', async (req: Request, res: Response) => {
   });
 });
 
-// POST /api/groups/hide (Delete group ONLY from CRM view, preserving actual WhatsApp group)
+// POST /api/groups/hide (Delete group ONLY from CRM view)
 groupsRouter.post('/hide', async (req: Request, res: Response) => {
   const { groupId, sessionName } = req.body;
   if (!groupId) {
@@ -80,13 +78,23 @@ groupsRouter.post('/hide', async (req: Request, res: Response) => {
   });
 });
 
-// POST /api/groups/categories
+// POST /api/groups/categories (Persistent user-created categories)
 groupsRouter.post('/categories', (req: Request, res: Response) => {
   const { categoryName } = req.body;
-  if (categoryName && !groupCategoriesList.includes(categoryName)) {
-    groupCategoriesList.push(categoryName);
+  const cleanName = categoryName?.trim();
+  if (cleanName && !groupCategoriesList.includes(cleanName)) {
+    groupCategoriesList.push(cleanName);
   }
   return res.json({ success: true, categories: groupCategoriesList, message: 'Nueva categoría creada' });
+});
+
+// DELETE /api/groups/categories (Delete category)
+groupsRouter.delete('/categories', (req: Request, res: Response) => {
+  const { categoryName } = req.body;
+  if (categoryName && categoryName !== 'Todas') {
+    groupCategoriesList = groupCategoriesList.filter((c) => c !== categoryName);
+  }
+  return res.json({ success: true, categories: groupCategoriesList, message: 'Categoría eliminada' });
 });
 
 // POST /api/groups/assign-category
