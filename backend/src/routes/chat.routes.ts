@@ -56,7 +56,7 @@ chatRouter.post('/send', async (req: Request, res: Response) => {
   const { chatId, content } = req.body;
   const sessionName = 'pizzeria-crm-tenant';
 
-  const sendResult = await OpenWAService.sendMessage(sessionName, chatId, content);
+  const sendResult: any = await OpenWAService.sendMessage(sessionName, '', chatId, content);
 
   if (!sendResult.success) {
     return res.status(500).json({ success: false, error: sendResult.error || 'Error enviando mensaje por WhatsApp' });
@@ -65,7 +65,7 @@ chatRouter.post('/send', async (req: Request, res: Response) => {
   return res.json({
     success: true,
     message: {
-      id: `msg_${Date.now()}`,
+      id: sendResult.messageId || `msg_${Date.now()}`,
       direction: 'OUTBOUND',
       content,
       sentAt: new Date().toISOString(),
