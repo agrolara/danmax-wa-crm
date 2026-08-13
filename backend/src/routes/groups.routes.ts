@@ -13,12 +13,15 @@ let groupCategoriesMap: Record<string, string> = {
 // Hidden groups map (CRM local deletion only)
 const hiddenGroupIdsSet: Set<string> = new Set();
 
-async function fetchLiveGroups(sessionName: string = 'pizzeria-crm-tenant') {
+async function fetchLiveGroups(sessionName?: string) {
   const liveChats = await OpenWAService.getLiveChats(sessionName);
 
   if (liveChats.success && liveChats.chats.length > 0) {
     return liveChats.chats
-      .filter((c: any) => c.isGroup && !hiddenGroupIdsSet.has(c.id))
+      .filter((c: any) => {
+        const isGrp = c.isGroup || c.kind === 'group' || (typeof c.id === 'string' && c.id.includes('@g.us'));
+        return isGrp && !hiddenGroupIdsSet.has(c.id);
+      })
       .map((g: any) => ({
         id: g.id,
         name: g.name || 'Grupo sin nombre',
@@ -33,7 +36,7 @@ async function fetchLiveGroups(sessionName: string = 'pizzeria-crm-tenant') {
 
 // GET /api/groups
 groupsRouter.get('/', async (req: Request, res: Response) => {
-  const sessionName = 'pizzeria-crm-tenant';
+  const sessionName = req.query.sessionName as string;
   const groups = await fetchLiveGroups(sessionName);
 
   return res.json({
@@ -46,12 +49,12 @@ groupsRouter.get('/', async (req: Request, res: Response) => {
 
 // POST /api/groups/sync (Force re-sync of WhatsApp groups from OpenWA Engine)
 groupsRouter.post('/sync', async (req: Request, res: Response) => {
-  const sessionName = 'pizzeria-crm-tenant';
+  const { sessionName } = req.body;
   const groups = await fetchLiveGroups(sessionName);
 
   return res.json({
     success: true,
-    message: `Sincronización completada. ${groups.length} grupos encontrados.`,
+    message: `Sincronización completada. ${groups.length} grupos encontrados en WhatsApp.`,
     groups,
     categories: groupCategoriesList,
     total: groups.length,
@@ -60,19 +63,18 @@ groupsRouter.post('/sync', async (req: Request, res: Response) => {
 
 // POST /api/groups/hide (Delete group ONLY from CRM view, preserving actual WhatsApp group)
 groupsRouter.post('/hide', async (req: Request, res: Response) => {
-  const { groupId } = req.body;
+  const { groupId, sessionName } = req.body;
   if (!groupId) {
     return res.status(400).json({ success: false, error: 'groupId es requerido' });
   }
 
   hiddenGroupIdsSet.add(groupId);
 
-  const sessionName = 'pizzeria-crm-tenant';
   const updatedGroups = await fetchLiveGroups(sessionName);
 
   return res.json({
     success: true,
-    message: 'Grupo eliminado únicamente del CRM DanMax WA.',
+    message: 'Grupo eliminado únicamente de la vista del CRM.',
     groups: updatedGroups,
     total: updatedGroups.length,
   });
@@ -98,8 +100,8 @@ groupsRouter.post('/assign-category', (req: Request, res: Response) => {
 
 // POST /api/groups/broadcast (Send Rich Multi-Media Broadcast to selected groups)
 groupsRouter.post('/broadcast', async (req: Request, res: Response) => {
-  const { groupIds, messageText, headerText, footerText, mediaUrl } = req.body;
-  const sessionName = 'pizzeria-crm-tenant';
+  const { groupIds, messageText, headerText, footerText, mediaUrl, sessionName } = req.body;
+  const targetSession = sessionName || 'ventas-online';
 
   if (!groupIds || !Array.isArray(groupIds) || groupIds.length === 0 || !messageText) {
     return res.status(400).json({ success: false, error: 'Debes seleccionar al menos un grupo e ingresar el mensaje' });
@@ -114,7 +116,7 @@ groupsRouter.post('/broadcast', async (req: Request, res: Response) => {
   const results = [];
   for (const groupId of groupIds) {
     const resSend = await OpenWAService.sendMessage(
-      sessionName,
+      targetSession,
       '',
       groupId,
       compiledFullMessage

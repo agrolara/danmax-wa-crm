@@ -77,12 +77,13 @@ export class OpenWAService {
       const existing = sessions.find(
         (s: any) =>
           s.name?.toLowerCase() === cleanName.toLowerCase() ||
-          s.id === cleanName
+          s.id === cleanName ||
+          s.name?.toLowerCase() === this.sanitizeSessionName(cleanName)
       );
 
       if (existing) {
         return {
-          id: existing.id, // UUID expected by OpenWA NestJS API
+          id: existing.id,
           name: existing.name || cleanName,
           status: existing.status || 'STOPPED',
           phone: existing.phone || existing.me || null,
@@ -207,7 +208,7 @@ export class OpenWAService {
   }
 
   /**
-   * Fetch all live active chats for a session from OpenWA (GET /api/sessions/:uuid/chats)
+   * Fetch all live active chats for a session from OpenWA (falls back to active READY session)
    */
   public static async getLiveChats(sessionName?: string) {
     const url = this.getBaseUrl();
@@ -217,11 +218,28 @@ export class OpenWAService {
       const sessions = await this.getSessions();
       let targetUuid: string | null = null;
 
+      // 1. Try specified session name
       if (sessionName) {
-        const found = sessions.find((s: any) => s.name?.toLowerCase() === sessionName.toLowerCase() || s.id === sessionName);
-        if (found) targetUuid = found.id;
+        const found = sessions.find(
+          (s: any) =>
+            s.name?.toLowerCase() === sessionName.toLowerCase() ||
+            s.id === sessionName ||
+            s.name?.toLowerCase() === this.sanitizeSessionName(sessionName)
+        );
+        if (found && (found.status === 'ready' || found.status === 'CONNECTED')) {
+          targetUuid = found.id;
+        }
       }
 
+      // 2. Fallback to any active READY session
+      if (!targetUuid) {
+        const readySession = sessions.find((s: any) => s.status === 'ready' || s.status === 'CONNECTED');
+        if (readySession) {
+          targetUuid = readySession.id;
+        }
+      }
+
+      // 3. Fallback to first session if none is ready
       if (!targetUuid && sessions.length > 0) {
         targetUuid = sessions[0].id;
       }
