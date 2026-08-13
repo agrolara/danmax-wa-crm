@@ -1,0 +1,192 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  SUPER_ADMIN
+  TENANT_ADMIN
+  AGENT
+}
+
+enum SessionStatus {
+  DISCONNECTED
+  STARTING
+  SCAN_QR
+  READY
+  FAILED
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+model Tenant {
+  id               String        @id @default(uuid())
+  name             String
+  slug             String        @unique
+  logoUrl          String?
+  openwaSessionId  String        @unique // e.g. tenant_pizzeria_123
+  openwaOperatorKey String?
+  whatsappPhone    String?
+  sessionStatus    SessionStatus @default(DISCONNECTED)
+  qrCodeUrl        String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  users            User[]
+  contacts         Contact[]
+  kanbanColumns    KanbanColumn[]
+  templates        Template[]
+  mediaItems       MediaItem[]
+  broadcasts       Broadcast[]
+
+  @@map("tenants")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  tenantId     String?
+  email        String   @unique
+  passwordHash String
+  fullName     String
+  role         Role     @default(AGENT)
+  avatarUrl    String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant       Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignedChats Chat[]  @relation("AssignedAgent")
+
+  @@map("users")
+}
+
+model Contact {
+  id            String   @id @default(uuid())
+  tenantId      String
+  phone         String   // E.164 format, e.g. 56912345678
+  name          String?
+  email         String?
+  tags          String[] // JSON/Array of tags
+  columnId      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  column        KanbanColumn? @relation(fields: [columnId], references: [id], onDelete: SetNull)
+  chats         Chat[]
+
+  @@unique([tenantId, phone])
+  @@map("contacts")
+}
+
+model KanbanColumn {
+  id              String   @id @default(uuid())
+  tenantId        String
+  name            String   // e.g. "Nuevo Lead", "En Preparación", "Entregado"
+  order           Int      @default(0)
+  color           String   @default("#6366f1")
+  autoTemplateId  String?  // Trigger WhatsApp Template when lead moves here
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contacts        Contact[]
+
+  @@map("kanban_columns")
+}
+
+model Chat {
+  id              String    @id @default(uuid())
+  tenantId        String
+  contactId       String
+  assignedAgentId String?
+  lastMessageText String?
+  lastMessageAt   DateTime?
+  unreadCount     Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  contact         Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  assignedAgent   User?     @relation("AssignedAgent", fields: [assignedAgentId], references: [id], onDelete: SetNull)
+  messages        Message[]
+
+  @@unique([tenantId, contactId])
+  @@map("chats")
+}
+
+model Message {
+  id              String           @id @default(uuid())
+  chatId          String
+  openwaMessageId String?          @unique
+  direction       MessageDirection
+  content         String
+  mediaUrl        String?
+  mediaType       String?          // image, video, audio, pdf, document
+  status          MessageStatus    @default(SENT)
+  sentAt          DateTime         @default(now())
+
+  chat            Chat             @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+model Template {
+  id          String   @id @default(uuid())
+  tenantId    String?  // null if system global template created by Super Admin
+  isGlobal    Boolean  @default(false)
+  title       String
+  category    String   @default("Ventas")
+  content     String   // e.g. "Hola {{nombre}}, tu pedido #{{pedido}} está listo!"
+  variables   String[] // ["nombre", "pedido"]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("templates")
+}
+
+model MediaItem {
+  id          String   @id @default(uuid())
+  tenantId    String
+  title       String
+  type        String   // PDF, IMAGE, AUDIO
+  fileUrl     String
+  sizeBytes   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("media_items")
+}
+
+model Broadcast {
+  id             String    @id @default(uuid())
+  tenantId       String
+  title          String
+  messageContent String
+  targetTag      String?   // Tag filter for contacts
+  scheduledFor   DateTime
+  status         String    @default("SCHEDULED") // SCHEDULED, PROCESSING, COMPLETED, FAILED
+  sentCount      Int       @default(0)
+  createdAt      DateTime  @default(now())
+
+  tenant         Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("broadcasts")
+}
