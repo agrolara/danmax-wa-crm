@@ -22,11 +22,24 @@ export const KanbanPipelineView: React.FC<KanbanProps> = ({ setCurrentTab }) => 
   const [refreshing, setRefreshing] = useState<boolean>(false);
 
   const fetchKanban = async () => {
-    setRefreshing(true);
     try {
       const res = await API.get('/kanban?tenantId=tenant_demo_pizzeria');
       if (res.data.success) {
         setColumns(res.data.columns);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleSyncKanban = async () => {
+    setRefreshing(true);
+    try {
+      const res = await API.post('/kanban/sync', { tenantId: 'tenant_demo_pizzeria' });
+      if (res.data.success && res.data.columns) {
+        setColumns(res.data.columns);
+        setNotification('⚡ Embudo de Ventas sincronizado en tiempo real con WhatsApp.');
+        setTimeout(() => setNotification(null), 3000);
       }
     } catch (err) {
       console.error(err);
@@ -135,7 +148,7 @@ export const KanbanPipelineView: React.FC<KanbanProps> = ({ setCurrentTab }) => 
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button className="btn btn-secondary" onClick={fetchKanban} disabled={refreshing}>
+          <button className="btn btn-secondary" onClick={handleSyncKanban} disabled={refreshing}>
             <RefreshCw size={16} className={refreshing ? 'spin' : ''} />
             <span>{refreshing ? 'Actualizando...' : 'Actualizar Embudo'}</span>
           </button>
