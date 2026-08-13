@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API } from '../services/api';
 import { socket } from '../services/socket';
-import { Zap, Plus, Phone, DollarSign, RefreshCw, User, MessageSquare, ExternalLink, Trash2, BroomIcon, Target } from 'lucide-react';
+import { Zap, Plus, Phone, DollarSign, RefreshCw, User, MessageSquare, ExternalLink, Trash2, Target } from 'lucide-react';
 
 interface KanbanProps {
   setCurrentTab?: (tab: string) => void;
