@@ -10,20 +10,23 @@ function formatPhoneNumber(chatObj: any): string {
   const rawId = chatObj.id || '';
   const rawName = chatObj.name || '';
 
-  // 1. If name starts with + or is a phone number (e.g. "+56 9 5178 2341")
+  // 1. If ID contains @lid, do NOT format as a phone number with fake "+"!
+  if (rawId.includes('@lid')) {
+    if (rawName.startsWith('+') || /^\+?[0-9\s-]{8,}$/.test(rawName.trim())) {
+      return rawName.startsWith('+') ? rawName : `+${rawName}`;
+    }
+    return `ID WhatsApp: ${rawId}`;
+  }
+
+  // 2. If name starts with + or is a phone number (e.g. "+56 9 5178 2341")
   if (rawName.startsWith('+') || /^\+?[0-9\s-]{8,}$/.test(rawName.trim())) {
     return rawName.startsWith('+') ? rawName : `+${rawName}`;
   }
 
-  // 2. If ID is standard @c.us phone ID (e.g. "56951782341@c.us")
-  if (rawId.includes('@c.us') || /^[0-9]{8,}@/.test(rawId)) {
+  // 3. If ID is standard @c.us or @s.whatsapp.net phone ID
+  if (rawId.endsWith('@c.us') || rawId.endsWith('@s.whatsapp.net')) {
     const digits = rawId.replace(/[^0-9]/g, '');
     return digits ? `+${digits}` : rawId;
-  }
-
-  // 3. If ID is @lid, display LID ID cleanly without prepending a fake "+"
-  if (rawId.includes('@lid')) {
-    return `ID WhatsApp: ${rawId}`;
   }
 
   return rawName || `Contacto ${rawId.replace(/@.*/, '')}`;
@@ -103,10 +106,17 @@ chatRouter.post('/assign-agent', (req: Request, res: Response) => {
 
 // POST /api/chats/send (Send message via OpenWA live session)
 chatRouter.post('/send', async (req: Request, res: Response) => {
-  const { chatId, content, sessionName } = req.body;
+  const { chatId, text, content, sessionName } = req.body;
   const targetSession = sessionName || 'ventas-online';
+  const textToSend = content || text;
 
-  const sendResult: any = await OpenWAService.sendMessage(targetSession, '', chatId, content);
+  if (!chatId || !textToSend) {
+    return res.status(400).json({ success: false, error: 'chatId y contenido del mensaje son requeridos' });
+  }
+
+  console.log(`[Chat Router Send Request] chatId: ${chatId}, session: ${targetSession}, content: "${textToSend}"`);
+
+  const sendResult: any = await OpenWAService.sendMessage(targetSession, '', chatId, textToSend);
 
   if (!sendResult.success) {
     return res.status(500).json({ success: false, error: sendResult.error || 'Error enviando mensaje por WhatsApp' });
@@ -117,7 +127,7 @@ chatRouter.post('/send', async (req: Request, res: Response) => {
     message: {
       id: sendResult.messageId || `msg_${Date.now()}`,
       direction: 'OUTBOUND',
-      content,
+      content: textToSend,
       sentAt: new Date().toISOString(),
       status: 'SENT',
     },

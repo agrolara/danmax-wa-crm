@@ -1,36 +1,60 @@
 const axios = require('axios');
-const dotenv = require('dotenv');
-dotenv.config();
 
-const url = (process.env.OPENWA_API_URL || 'https://whatsapp-autopublicaciones.agrolara.dedyn.io').replace(/\/$/, '');
-const adminKey = process.env.OPENWA_ADMIN_KEY;
+async function discoverOpenWARoutes() {
+  const url = 'https://whatsapp-autopublicaciones.agrolara.dedyn.io';
+  const key = 'Agro1280@';
 
-async function testFullFlow() {
-  console.log('--- TESTING FULL NESTJS OPENWA API FLOW ---');
-  const sessionId = '78146919-6c52-4c31-b9e9-a4734b7355b8';
+  const sessionsRes = await axios.get(`${url}/api/sessions`, {
+    headers: { 'X-API-Key': key },
+  });
 
-  console.log(`1. Calling POST /api/sessions/${sessionId}/start ...`);
-  try {
-    const resStart = await axios.post(`${url}/api/sessions/${sessionId}/start`, {}, {
-      headers: { 'X-API-Key': adminKey }
-    });
-    console.log('START SUCCESS:', JSON.stringify(resStart.data, null, 2));
-  } catch (e) {
-    console.log('START FAIL:', e.response?.status, e.response?.data || e.message);
-  }
+  const readySession = sessionsRes.data.find((s) => s.status === 'ready' || s.status === 'CONNECTED');
+  const uuid = readySession.id;
 
-  // Wait 2 seconds for QR to generate
-  await new Promise(r => setTimeout(r, 2000));
+  console.log(`[Discovering Message Routes for Session UUID: ${uuid}]...`);
 
-  console.log(`\n2. Calling GET /api/sessions/${sessionId}/qr ...`);
-  try {
-    const resQr = await axios.get(`${url}/api/sessions/${sessionId}/qr`, {
-      headers: { 'X-API-Key': adminKey }
-    });
-    console.log('GET QR SUCCESS:', JSON.stringify(resQr.data, null, 2));
-  } catch (e) {
-    console.log('GET QR FAIL:', e.response?.status, e.response?.data || e.message);
+  const candidates = [
+    { method: 'post', path: `/api/sessions/${uuid}/sendText` },
+    { method: 'post', path: `/api/sessions/${uuid}/send-text` },
+    { method: 'post', path: `/api/sessions/${uuid}/sendText` },
+    { method: 'post', path: `/api/sessions/${uuid}/send-message` },
+    { method: 'post', path: `/api/sessions/${uuid}/sendMessage` },
+    { method: 'post', path: `/api/sessions/${uuid}/chat/send` },
+    { method: 'post', path: `/api/sessions/${uuid}/chats/send-message` },
+    { method: 'post', path: `/api/sessions/${uuid}/messages/send` },
+    { method: 'post', path: `/api/sessions/${uuid}/messages` },
+    { method: 'post', path: `/api/sessions/${uuid}/chats/120363027909877164@g.us/messages` },
+    { method: 'post', path: `/api/sessions/${uuid}/chats/120363027909877164@g.us/send` },
+    { method: 'post', path: `/api/sessions/${uuid}/chats/120363027909877164@g.us/text` },
+    { method: 'post', path: `/api/messages` },
+    { method: 'post', path: `/api/messages/send` },
+    { method: 'post', path: `/api/chats/send` },
+  ];
+
+  for (const c of candidates) {
+    try {
+      const res = await axios({
+        method: c.method,
+        url: `${url}${c.path}`,
+        headers: { 'X-API-Key': key, 'Content-Type': 'application/json' },
+        data: {
+          to: '120363027909877164@g.us',
+          chatId: '120363027909877164@g.us',
+          text: 'Test probe',
+          message: 'Test probe',
+          content: 'Test probe',
+          sessionId: uuid,
+        },
+        timeout: 5000,
+      });
+
+      console.log(`🎉 SUCCESS ROUTE FOUND! [${c.method.toUpperCase()} ${c.path}]:`, res.status, JSON.stringify(res.data));
+    } catch (err) {
+      if (err.response?.status !== 404) {
+        console.log(`💡 ROUTE EXISTS! (Status ${err.response?.status}) [${c.method.toUpperCase()} ${c.path}]:`, JSON.stringify(err.response?.data || err.message));
+      }
+    }
   }
 }
 
-testFullFlow();
+discoverOpenWARoutes();

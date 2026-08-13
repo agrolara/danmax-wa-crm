@@ -74,6 +74,20 @@ export class OpenWAService {
 
     try {
       const sessions = await this.getSessions();
+
+      // Priority 1: Match active READY session
+      const readyMatch = sessions.find(
+        (s: any) =>
+          (s.status === 'ready' || s.status === 'CONNECTED') &&
+          (s.name?.toLowerCase() === cleanName.toLowerCase() ||
+            s.id === cleanName ||
+            s.name?.toLowerCase() === this.sanitizeSessionName(cleanName))
+      );
+      if (readyMatch) {
+        return { id: readyMatch.id, name: readyMatch.name || cleanName, status: readyMatch.status, phone: readyMatch.phone };
+      }
+
+      // Priority 2: Match any session by name
       const existing = sessions.find(
         (s: any) =>
           s.name?.toLowerCase() === cleanName.toLowerCase() ||
@@ -88,6 +102,12 @@ export class OpenWAService {
           status: existing.status || 'STOPPED',
           phone: existing.phone || existing.me || null,
         };
+      }
+
+      // Priority 3: Fallback to first READY session if available
+      const anyReady = sessions.find((s: any) => s.status === 'ready' || s.status === 'CONNECTED');
+      if (anyReady) {
+        return { id: anyReady.id, name: anyReady.name || cleanName, status: anyReady.status, phone: anyReady.phone };
       }
 
       // Create new session in OpenWA to get UUID
@@ -208,7 +228,7 @@ export class OpenWAService {
   }
 
   /**
-   * Fetch all live active chats for a session from OpenWA (falls back to active READY session)
+   * Fetch all live active chats for a session from OpenWA
    */
   public static async getLiveChats(sessionName?: string) {
     const url = this.getBaseUrl();
@@ -218,7 +238,6 @@ export class OpenWAService {
       const sessions = await this.getSessions();
       let targetUuid: string | null = null;
 
-      // 1. Try specified session name
       if (sessionName) {
         const found = sessions.find(
           (s: any) =>
@@ -231,7 +250,6 @@ export class OpenWAService {
         }
       }
 
-      // 2. Fallback to any active READY session
       if (!targetUuid) {
         const readySession = sessions.find((s: any) => s.status === 'ready' || s.status === 'CONNECTED');
         if (readySession) {
@@ -239,7 +257,6 @@ export class OpenWAService {
         }
       }
 
-      // 3. Fallback to first session if none is ready
       if (!targetUuid && sessions.length > 0) {
         targetUuid = sessions[0].id;
       }
@@ -273,20 +290,22 @@ export class OpenWAService {
   }
 
   /**
-   * Send text message via OpenWA using session UUID
+   * Send text message via OpenWA OpenAPI verified endpoint (POST /api/sessions/{sessionId}/messages/send-text)
    */
-  public static async sendMessage(sessionName: string, apiKey: string, to: string, text: string) {
+  public static async sendMessage(sessionName: string, apiKey: string, chatId: string, text: string) {
     const url = this.getBaseUrl();
     const key = apiKey || this.getAdminKey();
 
     try {
-      const sessionObj = await this.findOrCreateSession(sessionName);
+      const sessionObj = await this.findOrCreateSession(sessionName || 'ventas-online');
       const uuid = sessionObj.id;
-      const cleanTo = to.includes('@') ? to : to.replace(/[^0-9]/g, '') + '@c.us';
+      const cleanChatId = chatId.includes('@') ? chatId : chatId.replace(/[^0-9]/g, '') + '@c.us';
+
+      console.log(`[OpenWA Send] Target Session UUID: ${uuid}, ChatId: ${cleanChatId}, Text: "${text}"`);
 
       const response = await axios.post(
-        `${url}/api/sessions/${uuid}/message/text`,
-        { to: cleanTo, text },
+        `${url}/api/sessions/${uuid}/messages/send-text`,
+        { chatId: cleanChatId, text },
         {
           headers: {
             'X-API-Key': key,
@@ -295,6 +314,8 @@ export class OpenWAService {
           timeout: 12000,
         }
       );
+
+      console.log(`[OpenWA Send Response]:`, response.data);
 
       return {
         success: true,
