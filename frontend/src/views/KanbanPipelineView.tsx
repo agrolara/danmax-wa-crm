@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API } from '../services/api';
 import { socket } from '../services/socket';
-import { Zap, Plus, ArrowRight, X, Phone, DollarSign, RefreshCw, User, MessageSquare, ExternalLink, CheckCircle } from 'lucide-react';
+import { Zap, Plus, Phone, DollarSign, RefreshCw, User, MessageSquare, ExternalLink, CheckCircle } from 'lucide-react';
 
 interface KanbanProps {
   setCurrentTab?: (tab: string) => void;
@@ -19,8 +19,10 @@ export const KanbanPipelineView: React.FC<KanbanProps> = ({ setCurrentTab }) => 
   const [items, setItems] = useState<string>('');
   const [targetColumnId, setTargetColumnId] = useState<string>('col_1');
   const [submitting, setSubmitting] = useState<boolean>(false);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
 
   const fetchKanban = async () => {
+    setRefreshing(true);
     try {
       const res = await API.get('/kanban?tenantId=tenant_demo_pizzeria');
       if (res.data.success) {
@@ -28,34 +30,21 @@ export const KanbanPipelineView: React.FC<KanbanProps> = ({ setCurrentTab }) => 
       }
     } catch (err) {
       console.error(err);
+    } finally {
+      setRefreshing(false);
     }
   };
 
   useEffect(() => {
     fetchKanban();
 
+    // Real-time socket updates for Kanban board
     socket.on('kanban_updated', (updatedCols: any[]) => {
       setColumns(updatedCols);
     });
 
-    // Auto-add ONLY NEW incoming WhatsApp messages/contacts to "Contacto Nuevo"
-    socket.on('new_message', (data: any) => {
-      if (data && data.chatId && data.message && data.message.direction === 'INBOUND') {
-        API.post('/kanban/leads', {
-          tenantId: 'tenant_demo_pizzeria',
-          columnId: 'col_1',
-          contactName: data.contactName || `Cliente ${data.chatId.replace(/@.*/, '')}`,
-          phone: data.phone || data.chatId,
-          value: '$50.000',
-          items: data.message.content || 'Nuevo Mensaje Entrante de WhatsApp',
-          chatId: data.chatId,
-        }).then(() => fetchKanban());
-      }
-    });
-
     return () => {
       socket.off('kanban_updated');
-      socket.off('new_message');
     };
   }, []);
 
@@ -78,7 +67,12 @@ export const KanbanPipelineView: React.FC<KanbanProps> = ({ setCurrentTab }) => 
       });
 
       if (res.data.success) {
-        fetchKanban();
+        if (res.data.columns) {
+          setColumns(res.data.columns);
+        } else {
+          fetchKanban();
+        }
+
         if (res.data.autoTriggerText) {
           setNotification(`🤖 Mensaje Enviado Automáticamente al Cliente: "${res.data.autoTriggerText}"`);
         } else {
@@ -107,13 +101,17 @@ export const KanbanPipelineView: React.FC<KanbanProps> = ({ setCurrentTab }) => 
       });
 
       if (res.data.success) {
-        fetchKanban();
+        if (res.data.columns) {
+          setColumns(res.data.columns);
+        } else {
+          fetchKanban();
+        }
         setShowModal(false);
         setContactName('');
         setPhone('');
         setValue('');
         setItems('');
-        setNotification(`✨ Nueva Oportunidad "${contactName}" agregada en "Contacto Nuevo".`);
+        setNotification(`✨ Nueva Oportunidad "${contactName}" agregada exitosamente.`);
         setTimeout(() => setNotification(null), 4000);
       }
     } catch (err) {
@@ -132,14 +130,14 @@ export const KanbanPipelineView: React.FC<KanbanProps> = ({ setCurrentTab }) => 
             🎯 Embudo de Ventas Kanban Automatizado (5 Etapas)
           </h2>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Cada vez que alguien nuevo escriba por WhatsApp llegará a <strong>Contacto Nuevo</strong>. Haz clic en "Abrir Chat con Cliente" para chatear directamente en la Bandeja Multi-Agente.
+            Los mensajes nuevos o reabiertos de clientes en <em>Terminado</em> llegan a <strong>Contacto Nuevo</strong>. Las negociaciones activas no retroceden.
           </p>
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button className="btn btn-secondary" onClick={fetchKanban}>
-            <RefreshCw size={16} />
-            <span>Actualizar Embudo</span>
+          <button className="btn btn-secondary" onClick={fetchKanban} disabled={refreshing}>
+            <RefreshCw size={16} className={refreshing ? 'spin' : ''} />
+            <span>{refreshing ? 'Actualizando...' : 'Actualizar Embudo'}</span>
           </button>
           <button className="btn btn-primary" onClick={() => setShowModal(true)}>
             <Plus size={16} /> Nueva Oportunidad
@@ -191,14 +189,14 @@ export const KanbanPipelineView: React.FC<KanbanProps> = ({ setCurrentTab }) => 
                     </div>
 
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-                      {lead.items}
+                      💬 {lead.items}
                     </div>
 
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <Phone size={12} /> <span>{lead.phone}</span>
                     </div>
 
-                    {/* Acciones: Redirección al Chat Específico & Mover Etapa */}
+                    {/* Acciones: Abrir Chat Específico & Mover Etapa */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.75rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-color)' }}>
                       <button
                         className="btn btn-primary"
@@ -245,7 +243,7 @@ export const KanbanPipelineView: React.FC<KanbanProps> = ({ setCurrentTab }) => 
                 <span>Agregar Nueva Oportunidad / Lead</span>
               </h3>
               <button className="btn btn-secondary" style={{ padding: '4px 8px' }} onClick={() => setShowModal(false)}>
-                <X size={16} />
+                ✕
               </button>
             </div>
 

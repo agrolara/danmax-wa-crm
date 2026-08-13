@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { socketService } from '../services/socket.service';
+import { processIncomingKanbanMessage } from './kanban.routes';
 
 export const webhookRouter = Router();
 
@@ -37,12 +38,13 @@ function handleIncomingWebhook(req: Request, res: Response) {
       const fromContact = payload.from || payload.chatId || event.from || 'contact_wa';
       const msgBody = payload.body || payload.content || event.body || 'Mensaje recibido de WhatsApp';
       const senderName = payload.pushname || payload.sender?.name || payload.name || `Cliente ${fromContact.replace(/@.*/, '')}`;
+      const phoneNum = fromContact.includes('@') ? `+${fromContact.replace(/@.*/, '')}` : fromContact;
 
       const newMessagePayload = {
         chatId: fromContact,
         tenantId: targetTenantId,
         contactName: senderName,
-        phone: fromContact.includes('@') ? `+${fromContact.replace(/@.*/, '')}` : fromContact,
+        phone: phoneNum,
         direction: 'INBOUND',
         message: {
           id: payload.id || `msg_in_${Date.now()}`,
@@ -53,8 +55,21 @@ function handleIncomingWebhook(req: Request, res: Response) {
         },
       };
 
-      // Broadcast live message event to socket clients
+      // 1. Broadcast live message event to chat inbox socket clients
       socketService.emitToTenant(targetTenantId, 'new_message', newMessagePayload);
+
+      // 2. Process strict Kanban business rules for incoming WhatsApp messages
+      try {
+        processIncomingKanbanMessage(
+          targetTenantId,
+          senderName,
+          phoneNum,
+          fromContact,
+          typeof msgBody === 'string' ? msgBody : 'Mensaje multimedia'
+        );
+      } catch (errKanban) {
+        console.error('Error processing kanban rule:', errKanban);
+      }
       break;
 
     default:
