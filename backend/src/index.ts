@@ -1,6 +1,7 @@
 import express from 'express';
 import http from 'http';
 import cors from 'cors';
+import path from 'path';
 import { ENV } from './config/env';
 import { socketService } from './services/socket.service';
 import { authRouter } from './routes/auth.routes';
@@ -41,6 +42,21 @@ app.use('/api/media', mediaRouter);
 app.use('/api/webhooks', webhookRouter);
 app.use('/api/groups', groupsRouter);
 app.use('/api/team', teamRouter);
+
+// Serve Frontend Static Bundle in Production
+const frontendDistPath = path.join(__dirname, '../frontend-dist');
+app.use(express.static(frontendDistPath));
+
+app.get('*', (req, res) => {
+  if (!req.path.startsWith('/api') && !req.path.startsWith('/health')) {
+    const indexPath = path.join(frontendDistPath, 'index.html');
+    return res.sendFile(indexPath, (err) => {
+      if (err) {
+        res.send('DanMax WA Backend Online. Frontend bundle loading...');
+      }
+    });
+  }
+});
 
 server.listen(ENV.PORT, () => {
   console.log(`=================================================`);
