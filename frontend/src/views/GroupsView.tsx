@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { API } from '../services/api';
-import { Users, Search, Send, CheckSquare, Square, Zap, RefreshCw, CheckCircle2, Folder, Plus, Tag, X, FileText, Image as ImageIcon, Video, File, Eye, Upload, Link as LinkIcon, Trash2 } from 'lucide-react';
+import { Users, Search, Send, CheckSquare, Square, Zap, RefreshCw, CheckCircle2, Folder, Plus, Tag, X, FileText, Upload, Link as LinkIcon, Trash2, Check, MessageSquare } from 'lucide-react';
 
 export const GroupsView: React.FC = () => {
   const [groups, setGroups] = useState<any[]>([]);
@@ -37,7 +37,9 @@ export const GroupsView: React.FC = () => {
       if (resGroups.data.success) {
         setGroups(resGroups.data.groups);
         if (resGroups.data.categories) {
-          setCategories(resGroups.data.categories);
+          // Ensure deduplicated categories
+          const cleanCats = Array.from(new Set(['Todas', ...resGroups.data.categories]));
+          setCategories(cleanCats);
         }
       }
 
@@ -61,7 +63,10 @@ export const GroupsView: React.FC = () => {
       const res = await API.post('/groups/sync');
       if (res.data.success) {
         setGroups(res.data.groups);
-        if (res.data.categories) setCategories(res.data.categories);
+        if (res.data.categories) {
+          const cleanCats = Array.from(new Set(['Todas', ...res.data.categories]));
+          setCategories(cleanCats);
+        }
         setStatusNotification(res.data.message || 'Sincronización de grupos realizada con éxito.');
         setTimeout(() => setStatusNotification(null), 4000);
       }
@@ -108,14 +113,15 @@ export const GroupsView: React.FC = () => {
 
   const handleSelectTemplate = (tmplId: string) => {
     setSelectedTemplateId(tmplId);
-    if (!tmplId) return;
-
-    const found = templates.find((t) => t.id === tmplId);
-    if (found) {
-      setHeaderText(found.headerContent || '');
-      setBroadcastMessage(found.content || '');
-      setFooterText(found.footer || '');
-      setMediaUrl(found.mediaUrl || found.headerContent || '');
+    const tmpl = templates.find((t) => t.id === tmplId);
+    if (tmpl) {
+      setHeaderText(tmpl.headerText || '');
+      setBroadcastMessage(tmpl.bodyText || '');
+      setFooterText(tmpl.footerText || '');
+      if (tmpl.mediaUrl) {
+        setMediaUrl(tmpl.mediaUrl);
+        setMediaMode('URL');
+      }
     }
   };
 
@@ -126,10 +132,13 @@ export const GroupsView: React.FC = () => {
     try {
       const res = await API.post('/groups/categories', { categoryName: newCategoryInput.trim() });
       if (res.data.success) {
-        setCategories(res.data.categories);
+        const cleanCats = Array.from(new Set(['Todas', ...res.data.categories]));
+        setCategories(cleanCats);
         setActiveCategory(newCategoryInput.trim());
         setNewCategoryInput('');
         setShowCategoryModal(false);
+        setStatusNotification('Nueva categoría creada exitosamente.');
+        setTimeout(() => setStatusNotification(null), 3000);
       }
     } catch (err) {
       console.error(err);
@@ -143,11 +152,10 @@ export const GroupsView: React.FC = () => {
   };
 
   const handleSelectAll = () => {
-    const filteredIds = filteredGroups.map((g) => g.id);
-    if (selectedGroupIds.length === filteredIds.length) {
+    if (selectedGroupIds.length === filteredGroups.length) {
       setSelectedGroupIds([]);
     } else {
-      setSelectedGroupIds(filteredIds);
+      setSelectedGroupIds(filteredGroups.map((g) => g.id));
     }
   };
 
@@ -155,6 +163,20 @@ export const GroupsView: React.FC = () => {
     try {
       await API.post('/groups/assign-category', { groupId, category: newCategory });
       fetchGroupsAndTemplates();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleBulkAssignCategory = async (newCategory: string) => {
+    if (selectedGroupIds.length === 0 || !newCategory) return;
+    try {
+      for (const gid of selectedGroupIds) {
+        await API.post('/groups/assign-category', { groupId: gid, category: newCategory });
+      }
+      fetchGroupsAndTemplates();
+      setStatusNotification(`Categoría "${newCategory}" asignada a ${selectedGroupIds.length} grupos.`);
+      setTimeout(() => setStatusNotification(null), 3000);
     } catch (err) {
       console.error(err);
     }
@@ -198,15 +220,19 @@ export const GroupsView: React.FC = () => {
     return matchesSearch && matchesCategory;
   });
 
+  // Deduplicate categories list
+  const uniqueCategories = Array.from(new Set(categories.includes('Todas') ? categories : ['Todas', ...categories]));
+
   return (
     <div style={{ padding: '2rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+      {/* Header del Módulo */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h2 style={{ fontSize: '1.3rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            👥 Grupos de WhatsApp & Difusiones Ricas ({groups.length} detectados)
+            👥 Grupos de WhatsApp & Difusiones Masivas ({groups.length} detectados)
           </h2>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Sincroniza tus grupos desde WhatsApp o elimina aquellos que no desees ver en el CRM.
+            Organiza tus grupos en categorías personalizadas o envía mensajes masivos a los grupos seleccionados.
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -226,9 +252,9 @@ export const GroupsView: React.FC = () => {
         </div>
       )}
 
-      {/* Pill Filters por Categorías */}
+      {/* Pill Filters por Categorías (Deduplicadas) */}
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', overflowX: 'auto', paddingBottom: '4px' }}>
-        {['Todas', ...categories].map((cat) => (
+        {uniqueCategories.map((cat) => (
           <button
             key={cat}
             className={`btn btn-secondary ${activeCategory === cat ? 'active' : ''}`}
@@ -397,13 +423,13 @@ export const GroupsView: React.FC = () => {
         </div>
       )}
 
-      {/* Barra de Búsqueda y Selección Masiva */}
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', alignItems: 'center' }}>
+      {/* Barra de Búsqueda, Selección y Asignación Masiva */}
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '0.5rem 0.75rem' }}>
           <Search size={18} color="var(--text-dim)" />
           <input
             type="text"
-            placeholder="Buscar grupo por nombre..."
+            placeholder="Buscar grupo por nombre completo..."
             style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', outline: 'none', marginLeft: '0.5rem', width: '100%', fontSize: '0.875rem' }}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -414,13 +440,37 @@ export const GroupsView: React.FC = () => {
           {selectedGroupIds.length === filteredGroups.length && filteredGroups.length > 0 ? <CheckSquare size={16} color="var(--primary)" /> : <Square size={16} />}
           <span>{selectedGroupIds.length === filteredGroups.length && filteredGroups.length > 0 ? 'Deseleccionar Todos' : 'Seleccionar Todos'}</span>
         </button>
+
+        {/* Asignador de Categoría Masivo */}
+        {selectedGroupIds.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Tag size={16} color="var(--primary)" />
+            <select
+              className="chat-input"
+              style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem', background: 'rgba(99, 102, 241, 0.15)', color: 'var(--primary)', fontWeight: 700 }}
+              onChange={(e) => {
+                if (e.target.value) {
+                  handleBulkAssignCategory(e.target.value);
+                  e.target.value = '';
+                }
+              }}
+            >
+              <option value="">🏷️ Asignar Categoría a ({selectedGroupIds.length}) Seleccionados ▾</option>
+              {uniqueCategories.map((cat) => (
+                <option key={cat} value={cat}>
+                  Mover a Categoría: {cat}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
-      {/* Grid de Tarjetas de Grupos */}
+      {/* Listado Vertical de Grupos (Formato Lista Hacia Abajo para Nombres Completos) */}
       {filteredGroups.length === 0 ? (
         <div className="glass-card" style={{ textAlign: 'center', padding: '3rem 1.5rem' }}>
           <Users size={48} color="var(--primary)" style={{ marginBottom: '1rem', opacity: 0.7 }} />
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 800 }}>No se encontraron grupos en el CRM</h3>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 800 }}>No se encontraron grupos en esta categoría</h3>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px', marginBottom: '1rem' }}>
             Presiona "Actualizar Grupos" para sincronizar automáticamente los grupos donde está unida tu sesión de WhatsApp.
           </p>
@@ -429,7 +479,7 @@ export const GroupsView: React.FC = () => {
           </button>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           {filteredGroups.map((group) => {
             const isSelected = selectedGroupIds.includes(group.id);
             return (
@@ -437,52 +487,63 @@ export const GroupsView: React.FC = () => {
                 key={group.id}
                 className={`glass-card ${isSelected ? 'active' : ''}`}
                 style={{
-                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '1rem 1.25rem',
                   border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border-color)',
                   background: isSelected ? 'rgba(99, 102, 241, 0.12)' : 'var(--bg-card)',
                   transition: 'all 0.2s ease',
-                  position: 'relative',
+                  cursor: 'pointer',
+                  borderRadius: 'var(--radius-md)',
+                  gap: '1rem',
+                  flexWrap: 'wrap',
                 }}
                 onClick={() => handleToggleSelect(group.id)}
               >
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <div style={{ width: '38px', height: '38px', borderRadius: 'var(--radius-md)', background: 'linear-gradient(135deg, var(--accent-blue), var(--primary))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 800 }}>
-                      👥
-                    </div>
-                    <div>
-                      <h4 style={{ fontWeight: 700, fontSize: '0.9rem', maxWidth: '160px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {group.name}
-                      </h4>
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>ID: {group.id.split('@')[0]}</span>
-                    </div>
+                {/* Lado Izquierdo: Checkbox + Icono + Nombre Completo + Subtítulo */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, minWidth: '280px' }}>
+                  <div style={{ cursor: 'pointer' }}>
+                    {isSelected ? <CheckSquare size={22} color="var(--primary)" /> : <Square size={22} color="var(--text-dim)" />}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    {isSelected ? <CheckSquare size={20} color="var(--primary)" /> : <Square size={20} color="var(--text-dim)" />}
-                    <button
-                      className="btn btn-secondary"
-                      style={{ padding: '4px 6px', color: 'var(--accent-rose)' }}
-                      title="Eliminar grupo únicamente del CRM"
-                      onClick={(e) => handleHideGroupFromCRM(e, group.id)}
-                    >
-                      <Trash2 size={14} />
-                    </button>
+
+                  <div style={{ width: '42px', height: '42px', borderRadius: 'var(--radius-md)', background: 'linear-gradient(135deg, var(--accent-blue), var(--primary))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '1.2rem', fontWeight: 800, flexShrink: 0 }}>
+                    👥
+                  </div>
+
+                  <div style={{ flex: 1 }}>
+                    <h4 style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--text-main)', marginBottom: '2px', wordBreak: 'break-word' }}>
+                      {group.name}
+                    </h4>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.78rem', color: 'var(--text-dim)' }}>
+                      <span>ID: {group.id.split('@')[0]}</span>
+                      <span>•</span>
+                      <span style={{ color: 'var(--text-muted)' }}>💬 {group.lastMessage}</span>
+                    </div>
                   </div>
                 </div>
 
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', background: 'var(--bg-main)', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', marginBottom: '0.75rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  💬 {group.lastMessage}
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }} onClick={(e) => e.stopPropagation()}>
-                    <Tag size={12} color="var(--primary)" />
+                {/* Lado Derecho: Asignación de Categoría + Badge + Eliminar */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Tag size={14} color="var(--primary)" />
                     <select
-                      style={{ background: 'var(--bg-main)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: 'var(--radius-sm)', padding: '3px 8px', fontSize: '0.75rem', outline: 'none', fontWeight: 600 }}
-                      value={group.category}
+                      className="chat-input"
+                      style={{
+                        background: 'var(--bg-main)',
+                        border: '1px solid var(--border-color)',
+                        color: 'var(--text-main)',
+                        borderRadius: 'var(--radius-md)',
+                        padding: '6px 12px',
+                        fontSize: '0.8rem',
+                        outline: 'none',
+                        fontWeight: 600,
+                        minWidth: '150px',
+                      }}
+                      value={group.category || 'Todas'}
                       onChange={(e) => handleAssignCategory(group.id, e.target.value)}
                     >
-                      {categories.map((cat) => (
+                      {uniqueCategories.map((cat) => (
                         <option key={cat} value={cat}>
                           Categoría: {cat}
                         </option>
@@ -490,7 +551,18 @@ export const GroupsView: React.FC = () => {
                     </select>
                   </div>
 
-                  <span className="badge badge-amber">{group.unreadCount} no leídos</span>
+                  {group.unreadCount > 0 && (
+                    <span className="badge badge-amber">{group.unreadCount} no leídos</span>
+                  )}
+
+                  <button
+                    className="btn btn-secondary"
+                    style={{ padding: '6px 10px', color: 'var(--accent-rose)' }}
+                    title="Eliminar grupo únicamente de la vista del CRM"
+                    onClick={(e) => handleHideGroupFromCRM(e, group.id)}
+                  >
+                    <Trash2 size={16} />
+                  </button>
                 </div>
               </div>
             );
