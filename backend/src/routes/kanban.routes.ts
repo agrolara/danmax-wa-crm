@@ -1,6 +1,5 @@
 import { Router, Request, Response } from 'express';
 import { socketService } from '../services/socket.service';
-import { OpenWAService } from '../services/openwa.service';
 import { PersistentStore } from '../services/storage.service';
 
 export const kanbanRouter = Router();
@@ -77,121 +76,93 @@ export function saveKanban(tenantId: string = 'tenant_demo_pizzeria', columns: K
   PersistentStore.writeJSON('kanban_store.json', allStores);
 }
 
-/**
- * Core Kanban Business Rule Engine for incoming WhatsApp Messages:
- * Rule 1: Active Deal Stage (col_2, col_3, col_4) -> Keep in current stage & update message text. NEVER regress to col_1.
- * Rule 2: Terminated Stage (col_5) -> Reopen deal & move back to "Contacto Nuevo" (col_1) for new sales cycle.
- * Rule 3: Contacto Nuevo (col_1) -> Update message text in col_1.
- * Rule 4: Completely New Client -> Add new card directly in "Contacto Nuevo" (col_1).
- */
-export function processIncomingKanbanMessage(
-  tenantId: string = 'tenant_demo_pizzeria',
-  contactName: string,
-  phone: string,
-  chatId: string,
-  messageContent: string
-) {
-  const columns = getOrCreateKanban(tenantId);
-  const identifier = chatId || phone;
-
-  // Search if lead exists in any column
-  let existingCol: KanbanColumn | null = null;
-  let existingLeadIndex = -1;
-
-  for (const col of columns) {
-    const idx = col.leads.findIndex(
-      (l) => l.chatId === identifier || l.id === identifier || l.phone === phone || l.chatId === chatId
-    );
-    if (idx !== -1) {
-      existingCol = col;
-      existingLeadIndex = idx;
-      break;
-    }
-  }
-
-  if (existingCol && existingLeadIndex !== -1) {
-    const [lead] = existingCol.leads.splice(existingLeadIndex, 1);
-    lead.items = messageContent || 'Nuevo mensaje de WhatsApp';
-    lead.contactName = contactName || lead.contactName;
-
-    // Rule 2: If lead was in "Terminado" (col_5), move back to "Contacto Nuevo" (col_1) for new sales cycle!
-    if (existingCol.id === 'col_5') {
-      const col1 = columns.find((c) => c.id === 'col_1') || columns[0];
-      col1.leads.unshift(lead);
-      console.log(`[Kanban Rule 2]: Lead "${lead.contactName}" reopened from Terminado -> Contacto Nuevo`);
-    } else {
-      // Rule 1 & 3: Maintain current active stage (col_2, col_3, col_4, col_1)
-      existingCol.leads.unshift(lead);
-      console.log(`[Kanban Rule 1]: Lead "${lead.contactName}" updated in active stage ${existingCol.name}`);
-    }
-  } else {
-    // Rule 4: Completely new client -> Create card in "Contacto Nuevo" (col_1)
-    const col1 = columns.find((c) => c.id === 'col_1') || columns[0];
-    const newLead: KanbanLead = {
-      id: `lead_${Date.now()}`,
-      chatId: identifier,
-      contactName: contactName || `Cliente ${identifier.replace(/@.*/, '')}`,
-      phone: phone || identifier,
-      value: '$50.000',
-      items: messageContent || 'Nuevo mensaje de WhatsApp',
-      createdAt: new Date().toISOString().split('T')[0],
-    };
-    col1.leads.unshift(newLead);
-    console.log(`[Kanban Rule 4]: New client "${newLead.contactName}" added to Contacto Nuevo`);
-  }
-
-  saveKanban(tenantId, columns);
-  // Emit real-time update to all connected Socket clients!
-  socketService.emitToTenant(tenantId, 'kanban_updated', columns);
-  return columns;
-}
-
-/**
- * Live Unread Sync Engine:
- * Queries OpenWA Engine for active unread messages and applies processIncomingKanbanMessage
- */
-export async function syncUnreadKanbanMessages(tenantId: string = 'tenant_demo_pizzeria') {
-  try {
-    const liveChatsRes = await OpenWAService.getLiveChats();
-    if (liveChatsRes.success && Array.isArray(liveChatsRes.chats)) {
-      let updated = false;
-      for (const chat of liveChatsRes.chats) {
-        if (chat.unreadCount && chat.unreadCount > 0) {
-          const contactName = chat.name || chat.formattedTitle || `Cliente ${chat.id.replace(/@.*/, '')}`;
-          const phone = chat.id.includes('@') ? `+${chat.id.replace(/@.*/, '')}` : chat.id;
-          const lastMsg = typeof chat.lastMessage === 'string' ? chat.lastMessage : chat.lastMessage?.body || 'Nuevo mensaje no leído de WhatsApp';
-
-          processIncomingKanbanMessage(tenantId, contactName, phone, chat.id, lastMsg);
-          updated = true;
-        }
-      }
-      return updated;
-    }
-  } catch (err) {
-    console.warn('[Sync Unread Kanban Error]:', err);
-  }
-  return false;
-}
-
-// Background poller for live unread messages every 8 seconds
-setInterval(() => {
-  syncUnreadKanbanMessages('tenant_demo_pizzeria');
-}, 8000);
-
 // GET /api/kanban
-kanbanRouter.get('/', async (req: Request, res: Response) => {
+kanbanRouter.get('/', (req: Request, res: Response) => {
   const tenantId = (req.query.tenantId as string) || 'tenant_demo_pizzeria';
-  await syncUnreadKanbanMessages(tenantId);
   const columns = getOrCreateKanban(tenantId);
   return res.json({ success: true, columns });
 });
 
-// POST /api/kanban/sync (Button "Actualizar Embudo")
-kanbanRouter.post('/sync', async (req: Request, res: Response) => {
+// POST /api/kanban/clear (Vaciar Embudo Kanban a 0 tarjetas)
+kanbanRouter.post('/clear', (req: Request, res: Response) => {
   const { tenantId = 'tenant_demo_pizzeria' } = req.body;
-  await syncUnreadKanbanMessages(tenantId);
+  const columns = JSON.parse(JSON.stringify(DEFAULT_KANBAN));
+  saveKanban(tenantId, columns);
+  socketService.emitToTenant(tenantId, 'kanban_updated', columns);
+  return res.json({ success: true, message: 'Embudo Kanban vaciado completamente', columns });
+});
+
+// POST /api/kanban/add-from-chat (Manual addition of a customer from Chat Inbox)
+kanbanRouter.post('/add-from-chat', (req: Request, res: Response) => {
+  const { tenantId = 'tenant_demo_pizzeria', chatId, contactName, phone, columnId = 'col_1', notes, value } = req.body;
   const columns = getOrCreateKanban(tenantId);
-  return res.json({ success: true, message: 'Embudo sincronizado con éxito desde WhatsApp', columns });
+  const identifier = chatId || phone;
+
+  // Check if lead already exists in any column
+  let existingLead: KanbanLead | null = null;
+  for (const col of columns) {
+    const found = col.leads.find((l) => l.chatId === identifier || l.id === identifier || l.phone === phone);
+    if (found) {
+      existingLead = found;
+      break;
+    }
+  }
+
+  if (existingLead) {
+    if (notes) existingLead.items = notes;
+    if (value) existingLead.value = value;
+  } else {
+    const targetCol = columns.find((c) => c.id === columnId) || columns[0];
+    const newLead: KanbanLead = {
+      id: `lead_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      chatId: identifier,
+      contactName: contactName || `Cliente ${identifier.replace(/@.*/, '')}`,
+      phone: phone || identifier,
+      value: value || '$50.000',
+      items: notes || 'Oportunidad agregada desde la Bandeja Multi-Agente',
+      createdAt: new Date().toISOString().split('T')[0],
+    };
+    targetCol.leads.unshift(newLead);
+  }
+
+  saveKanban(tenantId, columns);
+  socketService.emitToTenant(tenantId, 'kanban_updated', columns);
+  return res.json({ success: true, message: `Oportunidad "${contactName}" agregada al Embudo Kanban`, columns });
+});
+
+// POST /api/kanban/bulk-add (Bulk add selected contacts from Chat Inbox)
+kanbanRouter.post('/bulk-add', (req: Request, res: Response) => {
+  const { tenantId = 'tenant_demo_pizzeria', contacts, columnId = 'col_1' } = req.body;
+  if (!contacts || !Array.isArray(contacts) || contacts.length === 0) {
+    return res.status(400).json({ success: false, error: 'Debes enviar al menos un contacto' });
+  }
+
+  const columns = getOrCreateKanban(tenantId);
+  const targetCol = columns.find((c) => c.id === columnId) || columns[0];
+  let addedCount = 0;
+
+  for (const c of contacts) {
+    const identifier = c.chatId || c.id || c.phone;
+    const exists = columns.some((col) => col.leads.some((l) => l.chatId === identifier || l.id === identifier || l.phone === c.phone));
+
+    if (!exists) {
+      const newLead: KanbanLead = {
+        id: `lead_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+        chatId: identifier,
+        contactName: c.contactName || `Cliente ${identifier.replace(/@.*/, '')}`,
+        phone: c.phone || identifier,
+        value: '$50.000',
+        items: c.lastMessageText || 'Agregado desde Selección Masiva de la Bandeja',
+        createdAt: new Date().toISOString().split('T')[0],
+      };
+      targetCol.leads.unshift(newLead);
+      addedCount++;
+    }
+  }
+
+  saveKanban(tenantId, columns);
+  socketService.emitToTenant(tenantId, 'kanban_updated', columns);
+  return res.json({ success: true, message: `¡${addedCount} contactos agregados exitosamente al Embudo Kanban!`, columns });
 });
 
 // POST /api/kanban/move (Move lead card between stages and emit real-time socket event)
@@ -211,7 +182,6 @@ kanbanRouter.post('/move', (req: Request, res: Response) => {
   targetCol.leads.unshift(movedLead);
 
   saveKanban(tenantId, columns);
-  // Real-time socket broadcast
   socketService.emitToTenant(tenantId, 'kanban_updated', columns);
 
   return res.json({
@@ -222,17 +192,46 @@ kanbanRouter.post('/move', (req: Request, res: Response) => {
   });
 });
 
-// POST /api/kanban/leads (Manual opportunity creation)
+// DELETE /api/kanban/lead/:id (Delete individual card from Kanban)
+kanbanRouter.delete('/lead/:id', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const tenantId = (req.query.tenantId as string) || 'tenant_demo_pizzeria';
+  const columns = getOrCreateKanban(tenantId);
+
+  for (const col of columns) {
+    const idx = col.leads.findIndex((l) => l.id === id);
+    if (idx !== -1) {
+      col.leads.splice(idx, 1);
+      break;
+    }
+  }
+
+  saveKanban(tenantId, columns);
+  socketService.emitToTenant(tenantId, 'kanban_updated', columns);
+  return res.json({ success: true, message: 'Oportunidad eliminada del Embudo', columns });
+});
+
+// POST /api/kanban/leads (Manual creation endpoint)
 kanbanRouter.post('/leads', (req: Request, res: Response) => {
   const { tenantId = 'tenant_demo_pizzeria', columnId = 'col_1', contactName, phone, value, items, chatId } = req.body;
+  const columns = getOrCreateKanban(tenantId);
 
-  const columns = processIncomingKanbanMessage(
-    tenantId,
-    contactName,
-    phone,
-    chatId || phone,
-    items || 'Consulta Comercial WhatsApp'
-  );
+  const identifier = chatId || phone || `lead_${Date.now()}`;
+  const targetCol = columns.find((c) => c.id === columnId) || columns[0];
 
-  return res.json({ success: true, columns });
+  const newLead: KanbanLead = {
+    id: `lead_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+    chatId: identifier,
+    contactName: contactName || 'Nuevo Cliente',
+    phone: phone || identifier,
+    value: value || '$50.000',
+    items: items || 'Creado manualmente',
+    createdAt: new Date().toISOString().split('T')[0],
+  };
+
+  targetCol.leads.unshift(newLead);
+  saveKanban(tenantId, columns);
+  socketService.emitToTenant(tenantId, 'kanban_updated', columns);
+
+  return res.json({ success: true, columns, lead: newLead });
 });

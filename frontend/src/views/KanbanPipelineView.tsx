@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API } from '../services/api';
 import { socket } from '../services/socket';
-import { Zap, Plus, Phone, DollarSign, RefreshCw, User, MessageSquare, ExternalLink, CheckCircle } from 'lucide-react';
+import { Zap, Plus, Phone, DollarSign, RefreshCw, User, MessageSquare, ExternalLink, Trash2, BroomIcon, Target } from 'lucide-react';
 
 interface KanbanProps {
   setCurrentTab?: (tab: string) => void;
@@ -38,13 +38,39 @@ export const KanbanPipelineView: React.FC<KanbanProps> = ({ setCurrentTab }) => 
       const res = await API.post('/kanban/sync', { tenantId: 'tenant_demo_pizzeria' });
       if (res.data.success && res.data.columns) {
         setColumns(res.data.columns);
-        setNotification('⚡ Embudo de Ventas sincronizado en tiempo real con WhatsApp.');
+        setNotification('⚡ Embudo de Ventas actualizado.');
         setTimeout(() => setNotification(null), 3000);
       }
     } catch (err) {
       console.error(err);
     } finally {
       setRefreshing(false);
+    }
+  };
+
+  const handleClearKanban = async () => {
+    if (!confirm('¿Deseas vaciar por completo todas las tarjetas del Embudo Kanban?')) return;
+    try {
+      const res = await API.post('/kanban/clear', { tenantId: 'tenant_demo_pizzeria' });
+      if (res.data.success && res.data.columns) {
+        setColumns(res.data.columns);
+        setNotification('🧹 Embudo Kanban vaciado por completo (0 tarjetas).');
+        setTimeout(() => setNotification(null), 3000);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteLead = async (e: React.MouseEvent, leadId: string) => {
+    e.stopPropagation();
+    try {
+      const res = await API.delete(`/kanban/lead/${leadId}?tenantId=tenant_demo_pizzeria`);
+      if (res.data.success && res.data.columns) {
+        setColumns(res.data.columns);
+      }
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -136,21 +162,24 @@ export const KanbanPipelineView: React.FC<KanbanProps> = ({ setCurrentTab }) => 
 
   return (
     <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Header y Botón Principal */}
+      {/* Header y Botones Principales */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h2 style={{ fontSize: '1.3rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            🎯 Embudo de Ventas Kanban Automatizado (5 Etapas)
+            🎯 Embudo de Ventas Kanban Personalizado (5 Etapas)
           </h2>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Los mensajes nuevos o reabiertos de clientes en <em>Terminado</em> llegan a <strong>Contacto Nuevo</strong>. Las negociaciones activas no retroceden.
+            Selecciona los contactos desde la <strong>Bandeja Multi-Agente</strong> y agrégalos al embudo a medida que te escriban para solicitar algo.
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button className="btn btn-secondary" onClick={handleClearKanban} style={{ color: 'var(--accent-rose)' }} title="Vaciar por completo todas las tarjetas del embudo">
+            <Trash2 size={16} /> Vaciar Embudo
+          </button>
           <button className="btn btn-secondary" onClick={handleSyncKanban} disabled={refreshing}>
             <RefreshCw size={16} className={refreshing ? 'spin' : ''} />
-            <span>{refreshing ? 'Actualizando...' : 'Actualizar Embudo'}</span>
+            <span>{refreshing ? 'Actualizando...' : 'Actualizar'}</span>
           </button>
           <button className="btn btn-primary" onClick={() => setShowModal(true)}>
             <Plus size={16} /> Nueva Oportunidad
@@ -158,7 +187,7 @@ export const KanbanPipelineView: React.FC<KanbanProps> = ({ setCurrentTab }) => 
         </div>
       </div>
 
-      {/* Notificación de Automatización */}
+      {/* Notificación */}
       {notification && (
         <div style={{ background: 'rgba(99, 102, 241, 0.2)', border: '1px solid var(--primary)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', marginBottom: '1rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
           <Zap size={16} color="var(--primary)" />
@@ -166,7 +195,7 @@ export const KanbanPipelineView: React.FC<KanbanProps> = ({ setCurrentTab }) => 
         </div>
       )}
 
-      {/* Tablero Kanban (5 Columnas: Contacto Nuevo -> En Cotización -> En Seguimiento -> Venta Cerrada -> Terminado) */}
+      {/* Tablero Kanban (5 Columnas) */}
       <div className="kanban-board" style={{ padding: 0 }}>
         {columns.map((col) => (
           <div key={col.id} className="kanban-column">
@@ -194,11 +223,21 @@ export const KanbanPipelineView: React.FC<KanbanProps> = ({ setCurrentTab }) => 
                   <div
                     key={lead.id}
                     className="kanban-card"
-                    style={{ borderLeft: `3px solid ${col.color}` }}
+                    style={{ borderLeft: `3px solid ${col.color}`, position: 'relative' }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
                       <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-main)' }}>{lead.contactName}</span>
-                      <span className="badge badge-green">{lead.value}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span className="badge badge-green">{lead.value}</span>
+                        <button
+                          className="btn btn-secondary"
+                          style={{ padding: '2px 4px', color: 'var(--accent-rose)' }}
+                          title="Eliminar de Kanban"
+                          onClick={(e) => handleDeleteLead(e, lead.id)}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
                     </div>
 
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>

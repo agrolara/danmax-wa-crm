@@ -1,6 +1,5 @@
 import { Router, Request, Response } from 'express';
 import { socketService } from '../services/socket.service';
-import { processIncomingKanbanMessage } from './kanban.routes';
 
 export const webhookRouter = Router();
 
@@ -55,21 +54,8 @@ function handleIncomingWebhook(req: Request, res: Response) {
         },
       };
 
-      // 1. Broadcast live message event to chat inbox socket clients
+      // Broadcast live message event to chat inbox socket clients
       socketService.emitToTenant(targetTenantId, 'new_message', newMessagePayload);
-
-      // 2. Process strict Kanban business rules for incoming WhatsApp messages
-      try {
-        processIncomingKanbanMessage(
-          targetTenantId,
-          senderName,
-          phoneNum,
-          fromContact,
-          typeof msgBody === 'string' ? msgBody : 'Mensaje multimedia'
-        );
-      } catch (errKanban) {
-        console.error('Error processing kanban rule:', errKanban);
-      }
       break;
 
     default:
