@@ -12,7 +12,7 @@ import { TeamView } from './views/TeamView';
 import { TemplatesView } from './views/TemplatesView';
 import { MediaCatalogView } from './views/MediaCatalogView';
 import { AnalyticsView } from './views/AnalyticsView';
-import { socket } from './services/socket';
+import { socket, joinTenantRoom } from './services/socket';
 import { soundService } from './services/sound';
 
 export const App: React.FC = () => {
@@ -49,10 +49,13 @@ export const App: React.FC = () => {
   useEffect(() => {
     if (currentUser) {
       localStorage.setItem('danmax_user', JSON.stringify(currentUser));
+      joinTenantRoom(currentUser.tenantId || currentUser.businessName);
     } else {
       localStorage.removeItem('danmax_user');
+      joinTenantRoom('tenant_demo_pizzeria');
     }
   }, [currentUser]);
+
 
   useEffect(() => {
     socket.on('new_message', (msg: any) => {

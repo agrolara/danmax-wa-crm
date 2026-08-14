@@ -1,0 +1,112 @@
+{
+  "tenant_demo_pizzeria": {
+    "categories": [
+      "Todas",
+      "GrupoVIP_1786683787391",
+      "GrupoVIP_1786683933817",
+      "GrupoVIP_1786683943387",
+      "GrupoVIP_1786683944663",
+      "GrupoVIP_1786683959396",
+      "GrupoVIP_1786683962087",
+      "RouteCat_danmax_wa_owner",
+      "RouteCat_super_admin",
+      "RouteCat_global_whatsapp_line",
+      "RouteCat_pizzeria",
+      "RouteCat_default",
+      "Admin_Group_Cat_1786684006091",
+      "Admin_Group_Cat_1786684047433"
+    ],
+    "groupCategoryMap": {},
+    "hiddenGroupIds": []
+  },
+  "tenant_client_groups_1786683787409": {
+    "categories": [
+      "Todas"
+    ],
+    "groupCategoryMap": {},
+    "hiddenGroupIds": []
+  },
+  "tenant_malformed_test": {
+    "categories": null,
+    "groupCategoryMap": "invalid_string",
+    "hiddenGroupIds": null
+  },
+  "tenant_client_groups_1786683933848": {
+    "categories": [
+      "Todas"
+    ],
+    "groupCategoryMap": {},
+    "hiddenGroupIds": []
+  },
+  "tenant_client_groups_1786683943436": {
+    "categories": [
+      "Todas"
+    ],
+    "groupCategoryMap": {},
+    "hiddenGroupIds": []
+  },
+  "tenant_client_groups_1786683944695": {
+    "categories": [
+      "Todas"
+    ],
+    "groupCategoryMap": {},
+    "hiddenGroupIds": []
+  },
+  "tenant_client_groups_1786683959424": {
+    "categories": [
+      "Todas"
+    ],
+    "groupCategoryMap": {},
+    "hiddenGroupIds": []
+  },
+  "tenant_client_groups_1786683962159": {
+    "categories": [
+      "Todas"
+    ],
+    "groupCategoryMap": {},
+    "hiddenGroupIds": []
+  },
+  "tenant_emp_alpha_1786683976975": {
+    "categories": [
+      "Todas",
+      "Alpha VIP Only"
+    ],
+    "groupCategoryMap": {
+      "alpha_group_1": "Alpha VIP Only"
+    },
+    "hiddenGroupIds": [
+      "alpha_hidden_1"
+    ]
+  },
+  "tenant_emp_beta_1786683976975": {
+    "categories": [
+      "Todas"
+    ],
+    "groupCategoryMap": {},
+    "hiddenGroupIds": []
+  },
+  "tenant_client_alpha": {
+    "categories": [
+      "Todas",
+      "Alpha_Group_Cat_1786684006091",
+      "Alpha_Group_Cat_1786684047433"
+    ],
+    "groupCategoryMap": {
+      "12345@g.us": "Alpha_Group_Cat_1786684047433"
+    },
+    "hiddenGroupIds": [
+      "hide_me_alpha@g.us"
+    ]
+  },
+  "tenant_client_beta": {
+    "categories": [
+      "Todas",
+      "Beta_Group_Cat_1786684006091",
+      "Beta_Group_Cat_1786684047433"
+    ],
+    "groupCategoryMap": {
+      "67890@g.us": "Beta_Group_Cat_1786684047433"
+    },
+    "hiddenGroupIds": []
+  }
+}

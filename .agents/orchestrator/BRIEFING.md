@@ -1,4 +1,4 @@
-# BRIEFING — 2026-08-14T04:46:36Z
+# BRIEFING — 2026-08-14T05:08:25Z
 
 ## Mission
 Fix permanent storage and multi-tenant persistence in DanMax WA CRM across disk locations, normalize admin tenant keys, and maintain strict tenant isolation.
@@ -20,13 +20,12 @@ Fix permanent storage and multi-tenant persistence in DanMax WA CRM across disk 
 3. **On failure**: Retry -> Replace -> Skip -> Redistribute -> Redesign
 4. **Succession**: Spawn successor at 20 spawns.
 - **Work items**:
-  1. Survey & Architecture Mapping [in-progress]
-  2. Multi-tier Storage Engine & Path Fallback [pending]
-  3. Admin Tenant Aliasing & Normalization [pending]
-  4. Multi-Tenant Isolation & Group/Template Persistence [pending]
-  5. E2E Verification & Adversarial Testing [pending]
-- **Current phase**: 0 (Survey)
-- **Current focus**: Survey codebase and architecture
+  1. Storage Engine Core & Multi-Disk Fallback [done]
+  2. Universal Tenant Normalization & Admin Aliasing [done]
+  3. Multi-Tenant Group & Template Persistence & Client Isolation [in-progress]
+  4. Full E2E Verification & Adversarial Coverage Hardening [pending]
+- **Current phase**: 2B (Iteration Loop - Milestone 3)
+- **Current focus**: Milestone 3: Multi-Tenant Group & Template Persistence & Client Isolation
 
 ## 🔒 Key Constraints
 - Dispatch-only: NEVER edit source code or run build/test commands directly.
@@ -36,39 +35,36 @@ Fix permanent storage and multi-tenant persistence in DanMax WA CRM across disk 
 
 ## Current Parent
 - Conversation ID: eb373ff5-c69e-4dd2-a053-f51bfaf90ff5
-- Updated: 2026-08-14T04:46:36Z
+- Updated: 2026-08-14T05:08:25Z
 
 ## Key Decisions Made
 - Project pattern selected for multi-tenant persistence overhaul.
+- Milestone 1 passed: Multi-tier storage engine, atomic writes, deep scoring, auto-backfill.
+- Milestone 2 passed: Canonical admin alias mapping (`tenant_demo_pizzeria`), route & socket normalization.
+- Milestone 3 active: Verifying & completing group categories, rich templates, kanban cards persistence, and frontend view synchronization.
 
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
 |-------|------|-----------|--------|---------|
-| explorer_survey_1 | teamwork_preview_explorer | Survey storage architecture | completed | 5094cb40-a254-44cb-b793-bccb35893ab2 |
-| explorer_survey_2 | teamwork_preview_explorer | Survey tenant normalization | completed | 9ab5fdef-edb1-4f5f-b38b-8aec0b92e393 |
-| explorer_survey_3 | teamwork_preview_explorer | Survey isolation & verification | completed | d2288c87-96ca-4c0e-8dbd-e416ca7a99c2 |
-| explorer_m1_1 | teamwork_preview_explorer | M1 path list & atomic write | completed | 4d3c0acb-7827-4363-8a86-b2628ccad66b |
-| explorer_m1_2 | teamwork_preview_explorer | M1 completeness scoring & backfill | completed | 24008cd2-dd52-48bd-aea1-99dfa8c30f96 |
-| explorer_m1_3 | teamwork_preview_explorer | M1 env.ts persistent config boot | completed | f2b83f23-eda7-4bd7-ae4c-fbbee842979d |
-| worker_m1 | teamwork_preview_worker | Implement M1 storage engine & env.ts | completed | 6bb9b666-800d-41d0-bf9f-29755315b312 |
-| reviewer_m1_1 | teamwork_preview_reviewer | M1 code review & build check | in-progress | 44386a11-802b-43be-bbde-5415eaa3112f |
-| reviewer_m1_2 | teamwork_preview_reviewer | M1 adversarial review & path check | in-progress | bd456708-a329-4235-934a-ce90e49e5926 |
-| challenger_m1_1 | teamwork_preview_challenger | M1 stress test disk wipe & corruption | in-progress | a51d907a-2763-4984-a541-8438314ed061 |
-| challenger_m1_2 | teamwork_preview_challenger | M1 stress test scoring & anti-recursion | in-progress | f6aacb48-a559-40c9-8ef5-abf54182fa88 |
-| auditor_m1_1 | teamwork_preview_auditor | M1 forensic integrity audit | in-progress | 196c21c6-b5ff-4477-9422-1b1667c73f59 |
+| explorer_m3_1 | teamwork_preview_explorer | M3 group & template persistence analysis | in-progress | 45ff4899-a30e-4249-bc91-7798e43f72f9 |
+| explorer_m3_2 | teamwork_preview_explorer | M3 client tenant isolation analysis | in-progress | 2e943de3-4a0a-4280-a0cd-9fd326944286 |
+| explorer_m3_3 | teamwork_preview_explorer | M3 frontend session & sync analysis | in-progress | df947faa-bf92-4069-9311-42646368158d |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 12 / 20
-- Pending subagents: 44386a11-802b-43be-bbde-5415eaa3112f, bd456708-a329-4235-934a-ce90e49e5926, a51d907a-2763-4984-a541-8438314ed061, f6aacb48-a559-40c9-8ef5-abf54182fa88, 196c21c6-b5ff-4477-9422-1b1667c73f59
-- Predecessor: none
+- Spawn count: 3 / 20
+- Pending subagents: 45ff4899-a30e-4249-bc91-7798e43f72f9, 2e943de3-4a0a-4280-a0cd-9fd326944286, df947faa-bf92-4069-9311-42646368158d
+- Predecessor: gen1
 - Successor: not yet spawned
 
 ## Active Timers
-- Heartbeat cron: not started
+- Heartbeat cron: f021c03f-bd2c-466a-9dcb-3dbb80cd9698/task-17
 - Safety timer: none
 
 ## Artifact Index
+- c:\Users\Usuario\Documents\antigravity\CRM WHATSAPP\PROJECT.md — Global architecture & milestones
+- c:\Users\Usuario\Documents\antigravity\CRM WHATSAPP\TEST_INFRA.md — E2E test plan & tiers
 - c:\Users\Usuario\Documents\antigravity\CRM WHATSAPP\.agents\ORIGINAL_REQUEST.md — User request
 - c:\Users\Usuario\Documents\antigravity\CRM WHATSAPP\.agents\orchestrator\DISPATCH.md — Dispatch log
 - c:\Users\Usuario\Documents\antigravity\CRM WHATSAPP\.agents\orchestrator\progress.md — Execution progress
+- c:\Users\Usuario\Documents\antigravity\CRM WHATSAPP\.agents\orchestrator\GATE_STATUS.md — Gate records

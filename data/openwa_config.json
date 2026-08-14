@@ -1,5 +1,5 @@
 {
-  "openwaApiUrl": "https://wa-custom.agrolara.dedyn.io",
-  "openwaAdminKey": "SecretKeyCustom_456!",
-  "webhookPublicUrl": "https://webhook-custom.agrolara.dedyn.io"
+  "openwaApiUrl": "https://whatsapp-test-instance.agrolara.dedyn.io",
+  "openwaAdminKey": "TestKeySecret999@",
+  "webhookPublicUrl": "https://crm-test-webhook.agrolara.dedyn.io"
 }

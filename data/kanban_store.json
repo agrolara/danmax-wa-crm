@@ -1,0 +1,860 @@
+{
+  "tenant_demo_pizzeria": [
+    {
+      "id": "col_1",
+      "name": "Contacto Nuevo",
+      "color": "#6366f1",
+      "autoTemplateText": "¡Hola {{nombre}}! Gracias por comunicarte con nosotros.",
+      "leads": [
+        {
+          "id": "lead_1786683980229_ihh7",
+          "chatId": "56955556666@c.us",
+          "contactName": "Pizzeria Corporate Order",
+          "phone": "+56955556666",
+          "value": "$500.000",
+          "items": "Oportunidad agregada desde la Bandeja Multi-Agente",
+          "createdAt": "2026-08-14"
+        },
+        {
+          "id": "lead_1786683804884_7ihb",
+          "chatId": "56922222222@c.us",
+          "contactName": "Bulk 2",
+          "phone": "+56922222222",
+          "value": "$50.000",
+          "items": "Agregado desde Selección Masiva de la Bandeja",
+          "createdAt": "2026-08-14"
+        },
+        {
+          "id": "lead_1786683804884_upcy",
+          "chatId": "56911111111@c.us",
+          "contactName": "Bulk 1",
+          "phone": "+56911111111",
+          "value": "$50.000",
+          "items": "Agregado desde Selección Masiva de la Bandeja",
+          "createdAt": "2026-08-14"
+        }
+      ]
+    },
+    {
+      "id": "col_2",
+      "name": "En Cotización / Negociación",
+      "color": "#f59e0b",
+      "autoTemplateText": "Hola {{nombre}}, estamos preparando tu propuesta.",
+      "leads": []
+    },
+    {
+      "id": "col_3",
+      "name": "En Seguimiento",
+      "color": "#3b82f6",
+      "autoTemplateText": "Hola {{nombre}}, ¿tuviste oportunidad de revisar nuestra información?",
+      "leads": []
+    },
+    {
+      "id": "col_4",
+      "name": "Venta Cerrada",
+      "color": "#10b981",
+      "autoTemplateText": "🎉 ¡Muchas gracias por tu preferencia {{nombre}}!",
+      "leads": []
+    },
+    {
+      "id": "col_5",
+      "name": "Terminado",
+      "color": "#ec4899",
+      "autoTemplateText": "✅ Pedido y atención finalizada con éxito. ¡Gracias por preferirnos!",
+      "leads": []
+    }
+  ],
+  "tenant_cliente_juan": [
+    {
+      "id": "col_1",
+      "name": "Contacto Nuevo",
+      "color": "#6366f1",
+      "autoTemplateText": "¡Hola {{nombre}}! Gracias por comunicarte con nosotros.",
+      "leads": []
+    },
+    {
+      "id": "col_2",
+      "name": "En Cotización / Negociación",
+      "color": "#f59e0b",
+      "autoTemplateText": "Hola {{nombre}}, estamos preparando tu propuesta.",
+      "leads": []
+    },
+    {
+      "id": "col_3",
+      "name": "En Seguimiento",
+      "color": "#3b82f6",
+      "autoTemplateText": "Hola {{nombre}}, ¿tuviste oportunidad de revisar nuestra información?",
+      "leads": []
+    },
+    {
+      "id": "col_4",
+      "name": "Venta Cerrada",
+      "color": "#10b981",
+      "autoTemplateText": "🎉 ¡Muchas gracias por tu preferencia {{nombre}}!",
+      "leads": []
+    },
+    {
+      "id": "col_5",
+      "name": "Terminado",
+      "color": "#ec4899",
+      "autoTemplateText": "✅ Pedido y atención finalizada con éxito. ¡Gracias por preferirnos!",
+      "leads": []
+    }
+  ],
+  "tenant_client_kanban_1786683787203": [
+    {
+      "id": "col_1",
+      "name": "Contacto Nuevo",
+      "color": "#6366f1",
+      "autoTemplateText": "¡Hola {{nombre}}! Gracias por comunicarte con nosotros.",
+      "leads": []
+    },
+    {
+      "id": "col_2",
+      "name": "En Cotización / Negociación",
+      "color": "#f59e0b",
+      "autoTemplateText": "Hola {{nombre}}, estamos preparando tu propuesta.",
+      "leads": []
+    },
+    {
+      "id": "col_3",
+      "name": "En Seguimiento",
+      "color": "#3b82f6",
+      "autoTemplateText": "Hola {{nombre}}, ¿tuviste oportunidad de revisar nuestra información?",
+      "leads": []
+    },
+    {
+      "id": "col_4",
+      "name": "Venta Cerrada",
+      "color": "#10b981",
+      "autoTemplateText": "🎉 ¡Muchas gracias por tu preferencia {{nombre}}!",
+      "leads": []
+    },
+    {
+      "id": "col_5",
+      "name": "Terminado",
+      "color": "#ec4899",
+      "autoTemplateText": "✅ Pedido y atención finalizada con éxito. ¡Gracias por preferirnos!",
+      "leads": []
+    }
+  ],
+  "tenant_client_adv_1786683804839": [
+    {
+      "id": "col_1",
+      "name": "Contacto Nuevo",
+      "color": "#6366f1",
+      "autoTemplateText": "¡Hola {{nombre}}! Gracias por comunicarte con nosotros.",
+      "leads": [
+        {
+          "id": "lead_1786683804855_1xcn",
+          "chatId": "56999887766@c.us",
+          "contactName": "Cliente Privado X",
+          "phone": "+56999887766",
+          "value": "$50.000",
+          "items": "Oportunidad agregada desde la Bandeja Multi-Agente",
+          "createdAt": "2026-08-14"
+        }
+      ]
+    },
+    {
+      "id": "col_2",
+      "name": "En Cotización / Negociación",
+      "color": "#f59e0b",
+      "autoTemplateText": "Hola {{nombre}}, estamos preparando tu propuesta.",
+      "leads": []
+    },
+    {
+      "id": "col_3",
+      "name": "En Seguimiento",
+      "color": "#3b82f6",
+      "autoTemplateText": "Hola {{nombre}}, ¿tuviste oportunidad de revisar nuestra información?",
+      "leads": []
+    },
+    {
+      "id": "col_4",
+      "name": "Venta Cerrada",
+      "color": "#10b981",
+      "autoTemplateText": "🎉 ¡Muchas gracias por tu preferencia {{nombre}}!",
+      "leads": []
+    },
+    {
+      "id": "col_5",
+      "name": "Terminado",
+      "color": "#ec4899",
+      "autoTemplateText": "✅ Pedido y atención finalizada con éxito. ¡Gracias por preferirnos!",
+      "leads": []
+    }
+  ],
+  "tenant_client_kanban_1786683933646": [
+    {
+      "id": "col_1",
+      "name": "Contacto Nuevo",
+      "color": "#6366f1",
+      "autoTemplateText": "¡Hola {{nombre}}! Gracias por comunicarte con nosotros.",
+      "leads": []
+    },
+    {
+      "id": "col_2",
+      "name": "En Cotización / Negociación",
+      "color": "#f59e0b",
+      "autoTemplateText": "Hola {{nombre}}, estamos preparando tu propuesta.",
+      "leads": []
+    },
+    {
+      "id": "col_3",
+      "name": "En Seguimiento",
+      "color": "#3b82f6",
+      "autoTemplateText": "Hola {{nombre}}, ¿tuviste oportunidad de revisar nuestra información?",
+      "leads": []
+    },
+    {
+      "id": "col_4",
+      "name": "Venta Cerrada",
+      "color": "#10b981",
+      "autoTemplateText": "🎉 ¡Muchas gracias por tu preferencia {{nombre}}!",
+      "leads": []
+    },
+    {
+      "id": "col_5",
+      "name": "Terminado",
+      "color": "#ec4899",
+      "autoTemplateText": "✅ Pedido y atención finalizada con éxito. ¡Gracias por preferirnos!",
+      "leads": []
+    }
+  ],
+  "tenant_client_kanban_1786683943189": [
+    {
+      "id": "col_1",
+      "name": "Contacto Nuevo",
+      "color": "#6366f1",
+      "autoTemplateText": "¡Hola {{nombre}}! Gracias por comunicarte con nosotros.",
+      "leads": []
+    },
+    {
+      "id": "col_2",
+      "name": "En Cotización / Negociación",
+      "color": "#f59e0b",
+      "autoTemplateText": "Hola {{nombre}}, estamos preparando tu propuesta.",
+      "leads": []
+    },
+    {
+      "id": "col_3",
+      "name": "En Seguimiento",
+      "color": "#3b82f6",
+      "autoTemplateText": "Hola {{nombre}}, ¿tuviste oportunidad de revisar nuestra información?",
+      "leads": []
+    },
+    {
+      "id": "col_4",
+      "name": "Venta Cerrada",
+      "color": "#10b981",
+      "autoTemplateText": "🎉 ¡Muchas gracias por tu preferencia {{nombre}}!",
+      "leads": []
+    },
+    {
+      "id": "col_5",
+      "name": "Terminado",
+      "color": "#ec4899",
+      "autoTemplateText": "✅ Pedido y atención finalizada con éxito. ¡Gracias por preferirnos!",
+      "leads": []
+    }
+  ],
+  "tenant_client_adv_1786683944127": [
+    {
+      "id": "col_1",
+      "name": "Contacto Nuevo",
+      "color": "#6366f1",
+      "autoTemplateText": "¡Hola {{nombre}}! Gracias por comunicarte con nosotros.",
+      "leads": [
+        {
+          "id": "lead_1786683944155_s0vc",
+          "chatId": "56999887766@c.us",
+          "contactName": "Cliente Privado X",
+          "phone": "+56999887766",
+          "value": "$50.000",
+          "items": "Oportunidad agregada desde la Bandeja Multi-Agente",
+          "createdAt": "2026-08-14"
+        }
+      ]
+    },
+    {
+      "id": "col_2",
+      "name": "En Cotización / Negociación",
+      "color": "#f59e0b",
+      "autoTemplateText": "Hola {{nombre}}, estamos preparando tu propuesta.",
+      "leads": []
+    },
+    {
+      "id": "col_3",
+      "name": "En Seguimiento",
+      "color": "#3b82f6",
+      "autoTemplateText": "Hola {{nombre}}, ¿tuviste oportunidad de revisar nuestra información?",
+      "leads": []
+    },
+    {
+      "id": "col_4",
+      "name": "Venta Cerrada",
+      "color": "#10b981",
+      "autoTemplateText": "🎉 ¡Muchas gracias por tu preferencia {{nombre}}!",
+      "leads": []
+    },
+    {
+      "id": "col_5",
+      "name": "Terminado",
+      "color": "#ec4899",
+      "autoTemplateText": "✅ Pedido y atención finalizada con éxito. ¡Gracias por preferirnos!",
+      "leads": []
+    }
+  ],
+  "tenant_client_kanban_1786683944414": [
+    {
+      "id": "col_1",
+      "name": "Contacto Nuevo",
+      "color": "#6366f1",
+      "autoTemplateText": "¡Hola {{nombre}}! Gracias por comunicarte con nosotros.",
+      "leads": []
+    },
+    {
+      "id": "col_2",
+      "name": "En Cotización / Negociación",
+      "color": "#f59e0b",
+      "autoTemplateText": "Hola {{nombre}}, estamos preparando tu propuesta.",
+      "leads": []
+    },
+    {
+      "id": "col_3",
+      "name": "En Seguimiento",
+      "color": "#3b82f6",
+      "autoTemplateText": "Hola {{nombre}}, ¿tuviste oportunidad de revisar nuestra información?",
+      "leads": []
+    },
+    {
+      "id": "col_4",
+      "name": "Venta Cerrada",
+      "color": "#10b981",
+      "autoTemplateText": "🎉 ¡Muchas gracias por tu preferencia {{nombre}}!",
+      "leads": []
+    },
+    {
+      "id": "col_5",
+      "name": "Terminado",
+      "color": "#ec4899",
+      "autoTemplateText": "✅ Pedido y atención finalizada con éxito. ¡Gracias por preferirnos!",
+      "leads": []
+    }
+  ],
+  "tenant_client_kanban_1786683959243": [
+    {
+      "id": "col_1",
+      "name": "Contacto Nuevo",
+      "color": "#6366f1",
+      "autoTemplateText": "¡Hola {{nombre}}! Gracias por comunicarte con nosotros.",
+      "leads": []
+    },
+    {
+      "id": "col_2",
+      "name": "En Cotización / Negociación",
+      "color": "#f59e0b",
+      "autoTemplateText": "Hola {{nombre}}, estamos preparando tu propuesta.",
+      "leads": []
+    },
+    {
+      "id": "col_3",
+      "name": "En Seguimiento",
+      "color": "#3b82f6",
+      "autoTemplateText": "Hola {{nombre}}, ¿tuviste oportunidad de revisar nuestra información?",
+      "leads": []
+    },
+    {
+      "id": "col_4",
+      "name": "Venta Cerrada",
+      "color": "#10b981",
+      "autoTemplateText": "🎉 ¡Muchas gracias por tu preferencia {{nombre}}!",
+      "leads": []
+    },
+    {
+      "id": "col_5",
+      "name": "Terminado",
+      "color": "#ec4899",
+      "autoTemplateText": "✅ Pedido y atención finalizada con éxito. ¡Gracias por preferirnos!",
+      "leads": []
+    }
+  ],
+  "tenant_client_kanban_1786683961918": [
+    {
+      "id": "col_1",
+      "name": "Contacto Nuevo",
+      "color": "#6366f1",
+      "autoTemplateText": "¡Hola {{nombre}}! Gracias por comunicarte con nosotros.",
+      "leads": []
+    },
+    {
+      "id": "col_2",
+      "name": "En Cotización / Negociación",
+      "color": "#f59e0b",
+      "autoTemplateText": "Hola {{nombre}}, estamos preparando tu propuesta.",
+      "leads": []
+    },
+    {
+      "id": "col_3",
+      "name": "En Seguimiento",
+      "color": "#3b82f6",
+      "autoTemplateText": "Hola {{nombre}}, ¿tuviste oportunidad de revisar nuestra información?",
+      "leads": []
+    },
+    {
+      "id": "col_4",
+      "name": "Venta Cerrada",
+      "color": "#10b981",
+      "autoTemplateText": "🎉 ¡Muchas gracias por tu preferencia {{nombre}}!",
+      "leads": []
+    },
+    {
+      "id": "col_5",
+      "name": "Terminado",
+      "color": "#ec4899",
+      "autoTemplateText": "✅ Pedido y atención finalizada con éxito. ¡Gracias por preferirnos!",
+      "leads": []
+    }
+  ],
+  "tenant_client_adv_1786683965701": [
+    {
+      "id": "col_1",
+      "name": "Contacto Nuevo",
+      "color": "#6366f1",
+      "autoTemplateText": "¡Hola {{nombre}}! Gracias por comunicarte con nosotros.",
+      "leads": [
+        {
+          "id": "lead_1786683965731_7gle",
+          "chatId": "56999887766@c.us",
+          "contactName": "Cliente Privado X",
+          "phone": "+56999887766",
+          "value": "$50.000",
+          "items": "Oportunidad agregada desde la Bandeja Multi-Agente",
+          "createdAt": "2026-08-14"
+        }
+      ]
+    },
+    {
+      "id": "col_2",
+      "name": "En Cotización / Negociación",
+      "color": "#f59e0b",
+      "autoTemplateText": "Hola {{nombre}}, estamos preparando tu propuesta.",
+      "leads": []
+    },
+    {
+      "id": "col_3",
+      "name": "En Seguimiento",
+      "color": "#3b82f6",
+      "autoTemplateText": "Hola {{nombre}}, ¿tuviste oportunidad de revisar nuestra información?",
+      "leads": []
+    },
+    {
+      "id": "col_4",
+      "name": "Venta Cerrada",
+      "color": "#10b981",
+      "autoTemplateText": "🎉 ¡Muchas gracias por tu preferencia {{nombre}}!",
+      "leads": []
+    },
+    {
+      "id": "col_5",
+      "name": "Terminado",
+      "color": "#ec4899",
+      "autoTemplateText": "✅ Pedido y atención finalizada con éxito. ¡Gracias por preferirnos!",
+      "leads": []
+    }
+  ],
+  "tenant_client_adv_1786683968936": [
+    {
+      "id": "col_1",
+      "name": "Contacto Nuevo",
+      "color": "#6366f1",
+      "autoTemplateText": "¡Hola {{nombre}}! Gracias por comunicarte con nosotros.",
+      "leads": [
+        {
+          "id": "lead_1786683968968_er8v",
+          "chatId": "56999887766@c.us",
+          "contactName": "Cliente Privado X",
+          "phone": "+56999887766",
+          "value": "$50.000",
+          "items": "Oportunidad agregada desde la Bandeja Multi-Agente",
+          "createdAt": "2026-08-14"
+        }
+      ]
+    },
+    {
+      "id": "col_2",
+      "name": "En Cotización / Negociación",
+      "color": "#f59e0b",
+      "autoTemplateText": "Hola {{nombre}}, estamos preparando tu propuesta.",
+      "leads": []
+    },
+    {
+      "id": "col_3",
+      "name": "En Seguimiento",
+      "color": "#3b82f6",
+      "autoTemplateText": "Hola {{nombre}}, ¿tuviste oportunidad de revisar nuestra información?",
+      "leads": []
+    },
+    {
+      "id": "col_4",
+      "name": "Venta Cerrada",
+      "color": "#10b981",
+      "autoTemplateText": "🎉 ¡Muchas gracias por tu preferencia {{nombre}}!",
+      "leads": []
+    },
+    {
+      "id": "col_5",
+      "name": "Terminado",
+      "color": "#ec4899",
+      "autoTemplateText": "✅ Pedido y atención finalizada con éxito. ¡Gracias por preferirnos!",
+      "leads": []
+    }
+  ],
+  "tenant_emp_alpha_1786683976975": [
+    {
+      "id": "col_1",
+      "name": "Contacto Nuevo",
+      "color": "#6366f1",
+      "autoTemplateText": "¡Hola {{nombre}}! Gracias por comunicarte con nosotros.",
+      "leads": [
+        {
+          "id": "lead_alpha_1786683977138",
+          "chatId": "56900001111@c.us",
+          "contactName": "Lead Secreto Alpha",
+          "phone": "+56900001111",
+          "value": "$100.000",
+          "items": "Confidencial Alpha",
+          "createdAt": "2026-08-14"
+        }
+      ]
+    },
+    {
+      "id": "col_2",
+      "name": "En Cotización / Negociación",
+      "color": "#f59e0b",
+      "autoTemplateText": "Hola {{nombre}}, estamos preparando tu propuesta.",
+      "leads": []
+    },
+    {
+      "id": "col_3",
+      "name": "En Seguimiento",
+      "color": "#3b82f6",
+      "autoTemplateText": "Hola {{nombre}}, ¿tuviste oportunidad de revisar nuestra información?",
+      "leads": []
+    },
+    {
+      "id": "col_4",
+      "name": "Venta Cerrada",
+      "color": "#10b981",
+      "autoTemplateText": "🎉 ¡Muchas gracias por tu preferencia {{nombre}}!",
+      "leads": []
+    },
+    {
+      "id": "col_5",
+      "name": "Terminado",
+      "color": "#ec4899",
+      "autoTemplateText": "✅ Pedido y atención finalizada con éxito. ¡Gracias por preferirnos!",
+      "leads": []
+    }
+  ],
+  "tenant_emp_beta_1786683976975": [
+    {
+      "id": "col_1",
+      "name": "Contacto Nuevo",
+      "color": "#6366f1",
+      "autoTemplateText": "¡Hola {{nombre}}! Gracias por comunicarte con nosotros.",
+      "leads": []
+    },
+    {
+      "id": "col_2",
+      "name": "En Cotización / Negociación",
+      "color": "#f59e0b",
+      "autoTemplateText": "Hola {{nombre}}, estamos preparando tu propuesta.",
+      "leads": []
+    },
+    {
+      "id": "col_3",
+      "name": "En Seguimiento",
+      "color": "#3b82f6",
+      "autoTemplateText": "Hola {{nombre}}, ¿tuviste oportunidad de revisar nuestra información?",
+      "leads": []
+    },
+    {
+      "id": "col_4",
+      "name": "Venta Cerrada",
+      "color": "#10b981",
+      "autoTemplateText": "🎉 ¡Muchas gracias por tu preferencia {{nombre}}!",
+      "leads": []
+    },
+    {
+      "id": "col_5",
+      "name": "Terminado",
+      "color": "#ec4899",
+      "autoTemplateText": "✅ Pedido y atención finalizada con éxito. ¡Gracias por preferirnos!",
+      "leads": []
+    }
+  ],
+  "tenant_client_alpha": [
+    {
+      "id": "col_1",
+      "name": "Contacto Nuevo",
+      "color": "#6366f1",
+      "autoTemplateText": "¡Hola {{nombre}}! Gracias por comunicarte con nosotros.",
+      "leads": []
+    },
+    {
+      "id": "col_2",
+      "name": "En Cotización / Negociación",
+      "color": "#f59e0b",
+      "autoTemplateText": "Hola {{nombre}}, estamos preparando tu propuesta.",
+      "leads": []
+    },
+    {
+      "id": "col_3",
+      "name": "En Seguimiento",
+      "color": "#3b82f6",
+      "autoTemplateText": "Hola {{nombre}}, ¿tuviste oportunidad de revisar nuestra información?",
+      "leads": []
+    },
+    {
+      "id": "col_4",
+      "name": "Venta Cerrada",
+      "color": "#10b981",
+      "autoTemplateText": "🎉 ¡Muchas gracias por tu preferencia {{nombre}}!",
+      "leads": []
+    },
+    {
+      "id": "col_5",
+      "name": "Terminado",
+      "color": "#ec4899",
+      "autoTemplateText": "✅ Pedido y atención finalizada con éxito. ¡Gracias por preferirnos!",
+      "leads": []
+    }
+  ],
+  "tenant_client_beta": [
+    {
+      "id": "col_1",
+      "name": "Contacto Nuevo",
+      "color": "#6366f1",
+      "autoTemplateText": "¡Hola {{nombre}}! Gracias por comunicarte con nosotros.",
+      "leads": [
+        {
+          "id": "lead_1786683980193_bk87",
+          "chatId": "56933334444@c.us",
+          "contactName": "Beta Customer Premium",
+          "phone": "+56933334444",
+          "value": "$250.000",
+          "items": "Oportunidad agregada desde la Bandeja Multi-Agente",
+          "createdAt": "2026-08-14"
+        }
+      ]
+    },
+    {
+      "id": "col_2",
+      "name": "En Cotización / Negociación",
+      "color": "#f59e0b",
+      "autoTemplateText": "Hola {{nombre}}, estamos preparando tu propuesta.",
+      "leads": []
+    },
+    {
+      "id": "col_3",
+      "name": "En Seguimiento",
+      "color": "#3b82f6",
+      "autoTemplateText": "Hola {{nombre}}, ¿tuviste oportunidad de revisar nuestra información?",
+      "leads": []
+    },
+    {
+      "id": "col_4",
+      "name": "Venta Cerrada",
+      "color": "#10b981",
+      "autoTemplateText": "🎉 ¡Muchas gracias por tu preferencia {{nombre}}!",
+      "leads": []
+    },
+    {
+      "id": "col_5",
+      "name": "Terminado",
+      "color": "#ec4899",
+      "autoTemplateText": "✅ Pedido y atención finalizada con éxito. ¡Gracias por preferirnos!",
+      "leads": []
+    }
+  ],
+  "tenant_client_adv_1786683999044": [
+    {
+      "id": "col_1",
+      "name": "Contacto Nuevo",
+      "color": "#6366f1",
+      "autoTemplateText": "¡Hola {{nombre}}! Gracias por comunicarte con nosotros.",
+      "leads": [
+        {
+          "id": "lead_1786683999065_xkc2",
+          "chatId": "56999887766@c.us",
+          "contactName": "Cliente Privado X",
+          "phone": "+56999887766",
+          "value": "$50.000",
+          "items": "Oportunidad agregada desde la Bandeja Multi-Agente",
+          "createdAt": "2026-08-14"
+        }
+      ]
+    },
+    {
+      "id": "col_2",
+      "name": "En Cotización / Negociación",
+      "color": "#f59e0b",
+      "autoTemplateText": "Hola {{nombre}}, estamos preparando tu propuesta.",
+      "leads": []
+    },
+    {
+      "id": "col_3",
+      "name": "En Seguimiento",
+      "color": "#3b82f6",
+      "autoTemplateText": "Hola {{nombre}}, ¿tuviste oportunidad de revisar nuestra información?",
+      "leads": []
+    },
+    {
+      "id": "col_4",
+      "name": "Venta Cerrada",
+      "color": "#10b981",
+      "autoTemplateText": "🎉 ¡Muchas gracias por tu preferencia {{nombre}}!",
+      "leads": []
+    },
+    {
+      "id": "col_5",
+      "name": "Terminado",
+      "color": "#ec4899",
+      "autoTemplateText": "✅ Pedido y atención finalizada con éxito. ¡Gracias por preferirnos!",
+      "leads": []
+    }
+  ],
+  "tenant_client_kanban_a_1786684017888": [
+    {
+      "id": "col_1",
+      "name": "Contacto Nuevo",
+      "color": "#6366f1",
+      "autoTemplateText": "¡Hola {{nombre}}! Gracias por comunicarte con nosotros.",
+      "leads": []
+    },
+    {
+      "id": "col_2",
+      "name": "En Cotización / Negociación",
+      "color": "#f59e0b",
+      "autoTemplateText": "Hola {{nombre}}, estamos preparando tu propuesta.",
+      "leads": []
+    },
+    {
+      "id": "col_3",
+      "name": "En Seguimiento",
+      "color": "#3b82f6",
+      "autoTemplateText": "Hola {{nombre}}, ¿tuviste oportunidad de revisar nuestra información?",
+      "leads": []
+    },
+    {
+      "id": "col_4",
+      "name": "Venta Cerrada",
+      "color": "#10b981",
+      "autoTemplateText": "🎉 ¡Muchas gracias por tu preferencia {{nombre}}!",
+      "leads": [
+        {
+          "id": "lead_1786684017914_15fs",
+          "chatId": "+56900000001",
+          "contactName": "Lead VIP Tenant A",
+          "phone": "+56900000001",
+          "value": "$50.000",
+          "items": "Creado manualmente",
+          "createdAt": "2026-08-14"
+        }
+      ]
+    },
+    {
+      "id": "col_5",
+      "name": "Terminado",
+      "color": "#ec4899",
+      "autoTemplateText": "✅ Pedido y atención finalizada con éxito. ¡Gracias por preferirnos!",
+      "leads": []
+    }
+  ],
+  "tenant_client_kanban_b_1786684017888": [
+    {
+      "id": "col_1",
+      "name": "Contacto Nuevo",
+      "color": "#6366f1",
+      "autoTemplateText": "¡Hola {{nombre}}! Gracias por comunicarte con nosotros.",
+      "leads": []
+    },
+    {
+      "id": "col_2",
+      "name": "En Cotización / Negociación",
+      "color": "#f59e0b",
+      "autoTemplateText": "Hola {{nombre}}, estamos preparando tu propuesta.",
+      "leads": []
+    },
+    {
+      "id": "col_3",
+      "name": "En Seguimiento",
+      "color": "#3b82f6",
+      "autoTemplateText": "Hola {{nombre}}, ¿tuviste oportunidad de revisar nuestra información?",
+      "leads": []
+    },
+    {
+      "id": "col_4",
+      "name": "Venta Cerrada",
+      "color": "#10b981",
+      "autoTemplateText": "🎉 ¡Muchas gracias por tu preferencia {{nombre}}!",
+      "leads": []
+    },
+    {
+      "id": "col_5",
+      "name": "Terminado",
+      "color": "#ec4899",
+      "autoTemplateText": "✅ Pedido y atención finalizada con éxito. ¡Gracias por preferirnos!",
+      "leads": []
+    }
+  ],
+  "tenant_client_adv_1786684039664": [
+    {
+      "id": "col_1",
+      "name": "Contacto Nuevo",
+      "color": "#6366f1",
+      "autoTemplateText": "¡Hola {{nombre}}! Gracias por comunicarte con nosotros.",
+      "leads": [
+        {
+          "id": "lead_1786684039693_s3jb",
+          "chatId": "56999887766@c.us",
+          "contactName": "Cliente Privado X",
+          "phone": "+56999887766",
+          "value": "$50.000",
+          "items": "Oportunidad agregada desde la Bandeja Multi-Agente",
+          "createdAt": "2026-08-14"
+        }
+      ]
+    },
+    {
+      "id": "col_2",
+      "name": "En Cotización / Negociación",
+      "color": "#f59e0b",
+      "autoTemplateText": "Hola {{nombre}}, estamos preparando tu propuesta.",
+      "leads": []
+    },
+    {
+      "id": "col_3",
+      "name": "En Seguimiento",
+      "color": "#3b82f6",
+      "autoTemplateText": "Hola {{nombre}}, ¿tuviste oportunidad de revisar nuestra información?",
+      "leads": []
+    },
+    {
+      "id": "col_4",
+      "name": "Venta Cerrada",
+      "color": "#10b981",
+      "autoTemplateText": "🎉 ¡Muchas gracias por tu preferencia {{nombre}}!",
+      "leads": []
+    },
+    {
+      "id": "col_5",
+      "name": "Terminado",
+      "color": "#ec4899",
+      "autoTemplateText": "✅ Pedido y atención finalizada con éxito. ¡Gracias por preferirnos!",
+      "leads": []
+    }
+  ]
+}

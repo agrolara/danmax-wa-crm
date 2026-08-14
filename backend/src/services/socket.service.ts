@@ -1,5 +1,6 @@
 import { Server as HttpServer } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
+import { normalizeTenantId } from './storage.service';
 
 class SocketService {
   private io: SocketIOServer | null = null;
@@ -15,10 +16,12 @@ class SocketService {
     this.io.on('connection', (socket: Socket) => {
       console.log(`⚡ Client connected to Socket.io: ${socket.id}`);
 
-      // Client joins a tenant-specific room
-      socket.on('join_tenant', (tenantId: string) => {
-        socket.join(`tenant_${tenantId}`);
-        console.log(`🔑 Socket ${socket.id} joined room tenant_${tenantId}`);
+      // Client joins a tenant-specific room (universally normalized)
+      socket.on('join_tenant', (rawTenantId?: string | null) => {
+        const normalized = normalizeTenantId(rawTenantId);
+        const roomName = `tenant_${normalized}`;
+        socket.join(roomName);
+        console.log(`🔑 Socket ${socket.id} joined room ${roomName} (raw: ${rawTenantId})`);
       });
 
       socket.on('disconnect', () => {
@@ -27,9 +30,14 @@ class SocketService {
     });
   }
 
-  public emitToTenant(tenantId: string, event: string, payload: any) {
+  /**
+   * Broadcasts an event to all sockets subscribed to the normalized tenant room.
+   */
+  public emitToTenant(rawTenantId: string | null | undefined, event: string, payload: any) {
     if (this.io) {
-      this.io.to(`tenant_${tenantId}`).emit(event, payload);
+      const normalized = normalizeTenantId(rawTenantId);
+      const roomName = `tenant_${normalized}`;
+      this.io.to(roomName).emit(event, payload);
     }
   }
 
@@ -41,3 +49,4 @@ class SocketService {
 }
 
 export const socketService = new SocketService();
+

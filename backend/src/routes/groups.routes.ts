@@ -4,7 +4,7 @@ import { PersistentStore, getTenantIdFromReq, normalizeTenantId } from '../servi
 
 export const groupsRouter = Router();
 
-interface GroupCategoryStore {
+export interface GroupCategoryStore {
   categories: string[];
   groupCategoryMap: Record<string, string>;
   hiddenGroupIds: string[];
@@ -17,7 +17,7 @@ const DEFAULT_STORE: GroupCategoryStore = {
 };
 
 // Load persistent data strictly isolated per Tenant / Client ID
-function loadGroupStore(tenantId: string): GroupCategoryStore {
+export function loadGroupStore(tenantId: string): GroupCategoryStore {
   const cleanTenant = normalizeTenantId(tenantId);
   const allStores = PersistentStore.readJSON<Record<string, GroupCategoryStore>>('groups_categories.json', {});
 
@@ -26,17 +26,31 @@ function loadGroupStore(tenantId: string): GroupCategoryStore {
     PersistentStore.writeJSON('groups_categories.json', allStores);
   }
 
+  // Defensive sanitization: ensure categories, groupCategoryMap, and hiddenGroupIds exist with proper types
+  if (!Array.isArray(allStores[cleanTenant].categories)) {
+    allStores[cleanTenant].categories = ['Todas'];
+  }
   if (!allStores[cleanTenant].categories.includes('Todas')) {
     allStores[cleanTenant].categories.unshift('Todas');
+  }
+  if (typeof allStores[cleanTenant].groupCategoryMap !== 'object' || !allStores[cleanTenant].groupCategoryMap) {
+    allStores[cleanTenant].groupCategoryMap = {};
+  }
+  if (!Array.isArray(allStores[cleanTenant].hiddenGroupIds)) {
+    allStores[cleanTenant].hiddenGroupIds = [];
   }
 
   return allStores[cleanTenant];
 }
 
-function saveGroupStore(tenantId: string, storeData: GroupCategoryStore) {
+export function saveGroupStore(tenantId: string, storeData: GroupCategoryStore): void {
   const cleanTenant = normalizeTenantId(tenantId);
   const allStores = PersistentStore.readJSON<Record<string, GroupCategoryStore>>('groups_categories.json', {});
-  allStores[cleanTenant] = storeData;
+  allStores[cleanTenant] = {
+    categories: Array.from(new Set(['Todas', ...(storeData.categories || [])])),
+    groupCategoryMap: storeData.groupCategoryMap || {},
+    hiddenGroupIds: Array.isArray(storeData.hiddenGroupIds) ? storeData.hiddenGroupIds : [],
+  };
   PersistentStore.writeJSON('groups_categories.json', allStores);
 }
 
@@ -86,6 +100,7 @@ groupsRouter.post('/sync', async (req: Request, res: Response) => {
 
   return res.json({
     success: true,
+    tenantId,
     message: `Sincronización completada. ${groups.length} grupos encontrados en WhatsApp.`,
     groups,
     categories: Array.from(new Set(['Todas', ...store.categories])),
@@ -111,6 +126,7 @@ groupsRouter.post('/hide', async (req: Request, res: Response) => {
 
   return res.json({
     success: true,
+    tenantId,
     message: 'Grupo eliminado únicamente de la vista del CRM.',
     groups: updatedGroups,
     total: updatedGroups.length,
@@ -120,8 +136,13 @@ groupsRouter.post('/hide', async (req: Request, res: Response) => {
 // POST /api/groups/categories (Create category strictly for this client/tenant)
 groupsRouter.post('/categories', (req: Request, res: Response) => {
   const tenantId = getTenantIdFromReq(req);
-  const { categoryName } = req.body;
-  const cleanName = categoryName?.trim();
+  const { categoryName, name } = req.body;
+  const cleanName = (categoryName || name)?.trim();
+
+  if (!cleanName) {
+    return res.status(400).json({ success: false, error: 'categoryName es requerido' });
+  }
+
   const store = loadGroupStore(tenantId);
 
   if (cleanName && !store.categories.includes(cleanName)) {
@@ -137,22 +158,53 @@ groupsRouter.post('/categories', (req: Request, res: Response) => {
   });
 });
 
-// DELETE /api/groups/categories (Delete category strictly for this tenant)
-groupsRouter.delete('/categories', (req: Request, res: Response) => {
+// DELETE /api/groups/categories/:name (Delete category by URL param)
+groupsRouter.delete('/categories/:name', (req: Request, res: Response) => {
   const tenantId = getTenantIdFromReq(req);
-  const { categoryName } = req.body;
+  const categoryName = decodeURIComponent(req.params.name || '').trim();
   const store = loadGroupStore(tenantId);
 
-  if (categoryName && categoryName !== 'Todas') {
+  if (categoryName && categoryName !== 'Todas' && store.categories.includes(categoryName)) {
     store.categories = store.categories.filter((c) => c !== categoryName);
     saveGroupStore(tenantId, store);
+    return res.json({
+      success: true,
+      tenantId,
+      categories: Array.from(new Set(['Todas', ...store.categories])),
+      message: `Categoría "${categoryName}" eliminada de tu cuenta`,
+    });
   }
 
-  return res.json({
-    success: true,
-    categories: Array.from(new Set(['Todas', ...store.categories])),
-    message: 'Categoría eliminada de tu cuenta',
-  });
+  if (categoryName === 'Todas') {
+    return res.status(400).json({ success: false, error: 'No se puede eliminar la categoría predeterminada' });
+  }
+
+  return res.status(404).json({ success: false, error: 'Categoría no encontrada en tu cuenta' });
+});
+
+// DELETE /api/groups/categories (Delete category strictly for this tenant via body or query)
+groupsRouter.delete('/categories', (req: Request, res: Response) => {
+  const tenantId = getTenantIdFromReq(req);
+  const { categoryName, name } = req.body;
+  const targetCategory = (categoryName || name || (req.query.categoryName as string) || (req.query.name as string))?.trim();
+  const store = loadGroupStore(tenantId);
+
+  if (targetCategory && targetCategory !== 'Todas' && store.categories.includes(targetCategory)) {
+    store.categories = store.categories.filter((c) => c !== targetCategory);
+    saveGroupStore(tenantId, store);
+    return res.json({
+      success: true,
+      tenantId,
+      categories: Array.from(new Set(['Todas', ...store.categories])),
+      message: `Categoría "${targetCategory}" eliminada de tu cuenta`,
+    });
+  }
+
+  if (targetCategory === 'Todas') {
+    return res.status(400).json({ success: false, error: 'No se puede eliminar la categoría predeterminada' });
+  }
+
+  return res.status(404).json({ success: false, error: 'Categoría no encontrada en tu cuenta' });
 });
 
 // POST /api/groups/assign-category (Assign group category strictly for this tenant)
@@ -166,7 +218,7 @@ groupsRouter.post('/assign-category', (req: Request, res: Response) => {
     saveGroupStore(tenantId, store);
   }
 
-  return res.json({ success: true, message: 'Categoría de grupo actualizada exclusivamente para tu cuenta' });
+  return res.json({ success: true, tenantId, message: 'Categoría de grupo actualizada exclusivamente para tu cuenta' });
 });
 
 // POST /api/groups/broadcast
@@ -197,7 +249,9 @@ groupsRouter.post('/broadcast', async (req: Request, res: Response) => {
 
   return res.json({
     success: true,
+    tenantId,
     message: `¡Difusión enviada con éxito a ${groupIds.length} grupos de WhatsApp!`,
     results,
   });
 });
+

@@ -1,0 +1,92 @@
+{
+  "tenant_demo_pizzeria": {
+    "tenantId": "tenant_demo_pizzeria",
+    "name": "Mi Negocio DanMax WA",
+    "activeLineId": "line_pizzeria-main-line_1786684047813",
+    "lines": [
+      {
+        "id": "line_pizzeria-main-line_1786684006501",
+        "name": "Pizzeria Main Line",
+        "whatsappPhone": null,
+        "status": "DISCONNECTED",
+        "openwaSessionId": "pizzeria-main-line",
+        "createdAt": "2026-08-14T05:06:46.501Z"
+      },
+      {
+        "id": "line_pizzeria-main-line_1786684047813",
+        "name": "Pizzeria Main Line",
+        "whatsappPhone": null,
+        "status": "DISCONNECTED",
+        "openwaSessionId": "pizzeria-main-line",
+        "createdAt": "2026-08-14T05:07:27.813Z"
+      }
+    ]
+  },
+  "tenant_emp_alpha_1786683976975": {
+    "tenantId": "tenant_emp_alpha_1786683976975",
+    "name": "Cliente tenant_emp_alpha_1786683976975",
+    "activeLineId": null,
+    "lines": [
+      {
+        "id": "line_alpha_1786683977209",
+        "name": "Línea Privada Alpha",
+        "whatsappPhone": "+56912340000",
+        "status": "READY",
+        "openwaSessionId": "sess_alpha_priv",
+        "createdAt": "2026-08-14T05:06:17.209Z"
+      }
+    ]
+  },
+  "tenant_emp_beta_1786683976975": {
+    "tenantId": "tenant_emp_beta_1786683976975",
+    "name": "Cliente tenant_emp_beta_1786683976975",
+    "activeLineId": null,
+    "lines": []
+  },
+  "tenant_client_alpha": {
+    "tenantId": "tenant_client_alpha",
+    "name": "Cliente tenant_client_alpha",
+    "activeLineId": "line_alpha-sales-line_1786684047767",
+    "lines": [
+      {
+        "id": "line_alpha-sales-line_1786684006444",
+        "name": "Alpha Sales Line",
+        "whatsappPhone": null,
+        "status": "DISCONNECTED",
+        "openwaSessionId": "alpha-sales-line",
+        "createdAt": "2026-08-14T05:06:46.444Z"
+      },
+      {
+        "id": "line_alpha-sales-line_1786684047767",
+        "name": "Alpha Sales Line",
+        "whatsappPhone": null,
+        "status": "DISCONNECTED",
+        "openwaSessionId": "alpha-sales-line",
+        "createdAt": "2026-08-14T05:07:27.767Z"
+      }
+    ]
+  },
+  "tenant_client_beta": {
+    "tenantId": "tenant_client_beta",
+    "name": "Cliente tenant_client_beta",
+    "activeLineId": "line_beta-support-line_1786684047789",
+    "lines": [
+      {
+        "id": "line_beta-support-line_1786684006479",
+        "name": "Beta Support Line",
+        "whatsappPhone": null,
+        "status": "DISCONNECTED",
+        "openwaSessionId": "beta-support-line",
+        "createdAt": "2026-08-14T05:06:46.479Z"
+      },
+      {
+        "id": "line_beta-support-line_1786684047789",
+        "name": "Beta Support Line",
+        "whatsappPhone": null,
+        "status": "DISCONNECTED",
+        "openwaSessionId": "beta-support-line",
+        "createdAt": "2026-08-14T05:07:27.789Z"
+      }
+    ]
+  }
+}

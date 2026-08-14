@@ -32,8 +32,8 @@ DanMax WA CRM features a dual-layer architecture combining real-time Baileys/Ope
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
 | 1 | Storage Engine Core & Multi-Disk Fallback | Implement multi-location resolution, atomic write, completeness scoring, auto-backfill, and config persistence in `storage.service.ts` and `env.ts` | none | DONE |
-| 2 | Universal Tenant Normalization & Admin Aliasing | Implement canonical admin alias mapping, `getTenantIdFromReq`, and route-level normalization in `templates.routes.ts`, `kanban.routes.ts`, `tenant.routes.ts`, and `socket.service.ts` | M1 | IN_PROGRESS |
-| 3 | Multi-Tenant Group & Template Persistence & Client Isolation | Guarantee 100% disk persistence for groups, categories, rich templates, and kanban cards per tenant with strict client isolation and frontend synchronization | M2 | PLANNED |
+| 2 | Universal Tenant Normalization & Admin Aliasing | Implement canonical admin alias mapping, `getTenantIdFromReq`, and route-level normalization in `templates.routes.ts`, `kanban.routes.ts`, `tenant.routes.ts`, and `socket.service.ts` | M1 | DONE |
+| 3 | Multi-Tenant Group & Template Persistence & Client Isolation | Guarantee 100% disk persistence for groups, categories, rich templates, and kanban cards per tenant with strict client isolation and frontend synchronization | M2 | IN_PROGRESS |
 | 4 | E2E Verification & Adversarial Coverage Hardening | Run complete E2E test suite (Tiers 1-4), execute Tier 5 adversarial stress/wipe tests, and verify 0-error TypeScript builds | M3 | PLANNED |
 
 ## Interface Contracts

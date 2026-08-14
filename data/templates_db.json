@@ -1,0 +1,230 @@
+{
+  "tenant_demo_pizzeria": {
+    "categories": [
+      "PizTiers"
+    ],
+    "templates": [
+      {
+        "id": "t_piz",
+        "title": "T Piz"
+      }
+    ]
+  },
+  "tenant_client_test_1786683787111": {
+    "categories": [
+      "General",
+      "Ventas",
+      "Promociones",
+      "Operaciones",
+      "Atención al Cliente"
+    ],
+    "templates": [
+      {
+        "id": "client_tmpl_1786683787128",
+        "tenantId": "tenant_client_test_1786683787111",
+        "isGlobal": false,
+        "title": "Plantilla Exclusiva Cliente",
+        "category": "General",
+        "headerType": "TEXT",
+        "headerContent": null,
+        "content": "Promoción solo para clientes de esta cuenta",
+        "footer": null,
+        "variables": [],
+        "mediaUrl": null,
+        "createdAt": "2026-08-14T05:03:07.128Z"
+      }
+    ]
+  },
+  "tenant_client_test_1786683933479": {
+    "categories": [
+      "General",
+      "Ventas",
+      "Promociones",
+      "Operaciones",
+      "Atención al Cliente"
+    ],
+    "templates": [
+      {
+        "id": "client_tmpl_1786683933500",
+        "tenantId": "tenant_client_test_1786683933479",
+        "isGlobal": false,
+        "title": "Plantilla Exclusiva Cliente",
+        "category": "General",
+        "headerType": "TEXT",
+        "headerContent": null,
+        "content": "Promoción solo para clientes de esta cuenta",
+        "footer": null,
+        "variables": [],
+        "mediaUrl": null,
+        "createdAt": "2026-08-14T05:05:33.500Z"
+      }
+    ]
+  },
+  "tenant_client_test_1786683943036": {
+    "categories": [
+      "General",
+      "Ventas",
+      "Promociones",
+      "Operaciones",
+      "Atención al Cliente"
+    ],
+    "templates": [
+      {
+        "id": "client_tmpl_1786683943068",
+        "tenantId": "tenant_client_test_1786683943036",
+        "isGlobal": false,
+        "title": "Plantilla Exclusiva Cliente",
+        "category": "General",
+        "headerType": "TEXT",
+        "headerContent": null,
+        "content": "Promoción solo para clientes de esta cuenta",
+        "footer": null,
+        "variables": [],
+        "mediaUrl": null,
+        "createdAt": "2026-08-14T05:05:43.068Z"
+      }
+    ]
+  },
+  "tenant_client_test_1786683944203": {
+    "categories": [
+      "General",
+      "Ventas",
+      "Promociones",
+      "Operaciones",
+      "Atención al Cliente"
+    ],
+    "templates": [
+      {
+        "id": "client_tmpl_1786683944223",
+        "tenantId": "tenant_client_test_1786683944203",
+        "isGlobal": false,
+        "title": "Plantilla Exclusiva Cliente",
+        "category": "General",
+        "headerType": "TEXT",
+        "headerContent": null,
+        "content": "Promoción solo para clientes de esta cuenta",
+        "footer": null,
+        "variables": [],
+        "mediaUrl": null,
+        "createdAt": "2026-08-14T05:05:44.223Z"
+      }
+    ]
+  },
+  "tenant_client_test_1786683959108": {
+    "categories": [
+      "General",
+      "Ventas",
+      "Promociones",
+      "Operaciones",
+      "Atención al Cliente"
+    ],
+    "templates": [
+      {
+        "id": "client_tmpl_1786683959129",
+        "tenantId": "tenant_client_test_1786683959108",
+        "isGlobal": false,
+        "title": "Plantilla Exclusiva Cliente",
+        "category": "General",
+        "headerType": "TEXT",
+        "headerContent": null,
+        "content": "Promoción solo para clientes de esta cuenta",
+        "footer": null,
+        "variables": [],
+        "mediaUrl": null,
+        "createdAt": "2026-08-14T05:05:59.129Z"
+      }
+    ]
+  },
+  "tenant_client_test_1786683961799": {
+    "categories": [
+      "General",
+      "Ventas",
+      "Promociones",
+      "Operaciones",
+      "Atención al Cliente"
+    ],
+    "templates": [
+      {
+        "id": "client_tmpl_1786683961818",
+        "tenantId": "tenant_client_test_1786683961799",
+        "isGlobal": false,
+        "title": "Plantilla Exclusiva Cliente",
+        "category": "General",
+        "headerType": "TEXT",
+        "headerContent": null,
+        "content": "Promoción solo para clientes de esta cuenta",
+        "footer": null,
+        "variables": [],
+        "mediaUrl": null,
+        "createdAt": "2026-08-14T05:06:01.818Z"
+      }
+    ]
+  },
+  "tenant_emp_alpha_1786683976975": {
+    "categories": [
+      "General",
+      "Ventas",
+      "Promociones",
+      "Operaciones",
+      "Atención al Cliente"
+    ],
+    "templates": [
+      {
+        "id": "tmpl_alpha_1786683976998",
+        "tenantId": "tenant_emp_alpha_1786683976975",
+        "isGlobal": false,
+        "title": "Plantilla Exclusiva Alpha",
+        "category": "Ventas",
+        "headerType": "TEXT",
+        "headerContent": null,
+        "content": "Contenido confidencial Alpha",
+        "footer": null,
+        "variables": [],
+        "mediaUrl": null,
+        "createdAt": "2026-08-14T05:06:16.998Z"
+      }
+    ]
+  },
+  "tenant_emp_beta_1786683976975": {
+    "categories": [
+      "General",
+      "Ventas",
+      "Promociones",
+      "Operaciones",
+      "Atención al Cliente"
+    ],
+    "templates": []
+  },
+  "tenant_client_alpha": {
+    "categories": [
+      "AlphaTiers"
+    ],
+    "templates": [
+      {
+        "id": "t_alpha",
+        "title": "T Alpha"
+      }
+    ]
+  },
+  "tenant_client_beta": {
+    "categories": [
+      "BetaTiers"
+    ],
+    "templates": [
+      {
+        "id": "t_beta",
+        "title": "T Beta"
+      }
+    ]
+  },
+  "tenant_audit_client_1786684017829": {
+    "categories": [
+      "General",
+      "Ventas",
+      "Promociones",
+      "Operaciones",
+      "Atención al Cliente"
+    ],
+    "templates": []
+  }
+}
