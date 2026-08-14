@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { API } from '../services/api';
-import { FileText, Globe, Lock, Plus, Copy, Check, Trash2, Tag, Eye, Image as ImageIcon, Video, File, Type, Sparkles, Upload, Link as LinkIcon, FolderOpen } from 'lucide-react';
+import { FileText, Globe, Lock, Plus, Copy, Check, Trash2, Tag, Eye, Image as ImageIcon, Video, File, Type, Sparkles, Upload, Link as LinkIcon, FolderOpen, CheckCircle2, X } from 'lucide-react';
 
 export const TemplatesView: React.FC = () => {
   const [templates, setTemplates] = useState<any[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
+  const [categories, setCategories] = useState<string[]>(['Todas']);
   const [activeCategory, setActiveCategory] = useState<string>('Todas');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [statusNotification, setStatusNotification] = useState<string | null>(null);
 
   // Modal Rich Template Builder State
   const [showModal, setShowModal] = useState<boolean>(false);
@@ -23,15 +24,18 @@ export const TemplatesView: React.FC = () => {
   const [footer, setFooter] = useState('');
   const [mediaUrl, setMediaUrl] = useState('');
   const [isGlobal, setIsGlobal] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchTemplates = async () => {
     try {
-      const res = await API.get('/templates?tenantId=tenant_demo_pizzeria');
+      const res = await API.get('/templates?tenantId=global_whatsapp_line');
       if (res.data.success) {
-        setTemplates(res.data.templates);
-        setCategories(['Todas', ...(res.data.categories || [])]);
+        setTemplates(res.data.templates || []);
+        if (res.data.categories) {
+          setCategories(Array.from(new Set(['Todas', ...res.data.categories])));
+        }
       }
     } catch (err) {
       console.error(err);
@@ -60,19 +64,26 @@ export const TemplatesView: React.FC = () => {
 
   const handleCreateTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!title.trim() || !content.trim()) return;
+
+    setSaving(true);
     try {
       const res = await API.post('/templates', {
-        title,
+        title: title.trim(),
         category,
         headerType,
         headerContent,
-        content,
-        footer,
+        content: content.trim(),
+        footer: footer.trim(),
         isGlobal,
         mediaUrl,
-        tenantId: 'tenant_demo_pizzeria',
+        tenantId: 'global_whatsapp_line',
       });
+
       if (res.data.success) {
+        if (res.data.templates) setTemplates(res.data.templates);
+        if (res.data.categories) setCategories(Array.from(new Set(['Todas', ...res.data.categories])));
+
         setShowModal(false);
         setTitle('');
         setContent('');
@@ -80,18 +91,27 @@ export const TemplatesView: React.FC = () => {
         setHeaderContent('');
         setFileName('');
         setMediaUrl('');
+        setStatusNotification(res.data.message || `✨ Plantilla "${title}" guardada exitosamente de forma 100% permanente.`);
+        setTimeout(() => setStatusNotification(null), 4000);
         fetchTemplates();
       }
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Error al guardar la plantilla');
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleDeleteTemplate = async (id: string) => {
     if (!confirm('¿Deseas eliminar esta plantilla?')) return;
     try {
-      await API.delete(`/templates/${id}`);
-      fetchTemplates();
+      const res = await API.delete(`/templates/${id}?tenantId=global_whatsapp_line`);
+      if (res.data.success) {
+        if (res.data.templates) setTemplates(res.data.templates);
+        setStatusNotification('Plantilla eliminada.');
+        setTimeout(() => setStatusNotification(null), 3000);
+        fetchTemplates();
+      }
     } catch (err) {
       console.error(err);
     }
@@ -112,15 +132,17 @@ export const TemplatesView: React.FC = () => {
     return t.category === activeCategory;
   });
 
+  const uniqueCategories = Array.from(new Set(categories.includes('Todas') ? categories : ['Todas', ...categories]));
+
   return (
     <div style={{ padding: '2rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h2 style={{ fontSize: '1.3rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            📚 Biblioteca de Plantillas Ricas (Adjuntos Completos)
+            📚 Biblioteca de Plantillas Ricas ({templates.length} guardadas)
           </h2>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Crea plantillas con imágenes completas sin recortar, videos, PDF y texto explicativo.
+            Crea plantillas con imágenes completas sin recortar, videos, PDF y texto explicativo. Se guardan de forma 100% permanente.
           </p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowModal(true)}>
@@ -128,9 +150,15 @@ export const TemplatesView: React.FC = () => {
         </button>
       </div>
 
+      {statusNotification && (
+        <div style={{ background: 'rgba(16, 185, 129, 0.15)', border: '1px solid var(--accent-green)', color: 'var(--accent-green)', padding: '0.85rem 1.25rem', borderRadius: 'var(--radius-md)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 600 }}>
+          <CheckCircle2 size={18} /> {statusNotification}
+        </div>
+      )}
+
       {/* Pill Filter por Categorías */}
       <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', paddingBottom: '0.75rem', marginBottom: '1.5rem' }}>
-        {categories.map((cat) => (
+        {uniqueCategories.map((cat) => (
           <button
             key={cat}
             className={`btn btn-secondary ${activeCategory === cat ? 'active' : ''}`}
@@ -149,327 +177,264 @@ export const TemplatesView: React.FC = () => {
         ))}
       </div>
 
-      {/* Grid de Plantillas Ricas */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1.25rem' }}>
-        {filteredTemplates.map((tmpl) => (
-          <div key={tmpl.id} className="glass-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  {tmpl.isGlobal ? (
-                    <Globe size={16} color="var(--primary)" />
-                  ) : (
-                    <Lock size={16} color="var(--accent-amber)" />
-                  )}
-                  <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{tmpl.title}</span>
-                </div>
-                <div style={{ display: 'flex', gap: '4px' }}>
-                  <span className="badge badge-blue">{tmpl.category}</span>
-                  {!tmpl.isGlobal && (
-                    <button
-                      onClick={() => handleDeleteTemplate(tmpl.id)}
-                      style={{ background: 'transparent', border: 'none', color: 'var(--accent-rose)', cursor: 'pointer', padding: '2px' }}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Burbuja Estilo WhatsApp Nativo con Imagen Completa y Texto abajo */}
-              <div style={{ background: 'rgba(16, 185, 129, 0.12)', border: '1px solid var(--accent-green)', borderRadius: 'var(--radius-md)', padding: '0.5rem', marginBottom: '0.75rem' }}>
-                {tmpl.headerType === 'IMAGE' && tmpl.headerContent && (
-                  <img
-                    src={tmpl.headerContent}
-                    alt="Imagen Completa"
-                    style={{ width: '100%', maxHeight: '240px', objectFit: 'contain', background: '#0a0a0c', borderRadius: 'var(--radius-sm)', marginBottom: '0.5rem' }}
-                  />
-                )}
-
-                {tmpl.headerType === 'VIDEO' && tmpl.headerContent && (
-                  <video
-                    src={tmpl.headerContent}
-                    controls
-                    style={{ width: '100%', maxHeight: '200px', borderRadius: 'var(--radius-sm)', marginBottom: '0.5rem', background: '#0a0a0c' }}
-                  />
-                )}
-
-                {tmpl.headerType === 'TEXT' && tmpl.headerContent && (
-                  <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--primary)', marginBottom: '0.5rem', padding: '0 0.5rem' }}>
-                    {tmpl.headerContent.toUpperCase()}
-                  </div>
-                )}
-
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-main)', lineHeight: 1.5, padding: '0.25rem 0.5rem' }}>
-                  {tmpl.content}
-                  {tmpl.footer && (
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '4px', fontStyle: 'italic' }}>
-                      {tmpl.footer}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem' }}>
-              <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                {tmpl.variables?.map((v: string) => (
-                  <span key={v} className="badge badge-amber" style={{ fontSize: '0.65rem' }}>
-                    {`{{${v}}}`}
-                  </span>
-                ))}
-              </div>
-              <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => copyToClipboard(tmpl.content, tmpl.id)}>
-                {copiedId === tmpl.id ? <Check size={12} color="var(--accent-green)" /> : <Copy size={12} />} Copiar
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Modal Creador de Plantillas Ricas */}
-      {showModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
-          <div className="glass-card" style={{ width: '740px', background: 'var(--bg-card-solid)', display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1.5rem', maxHeight: '90vh', overflowY: 'auto' }}>
-            {/* Formulario */}
-            <div>
-              <h3 style={{ marginBottom: '1rem', fontWeight: 800 }}>✨ Creador de Plantilla WhatsApp</h3>
-              <form onSubmit={handleCreateTemplate} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                <div>
-                  <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Título de la Plantilla</label>
-                  <input
-                    type="text"
-                    className="chat-input"
-                    style={{ width: '100%' }}
-                    placeholder="Ej: Promo Pizza Combo 2x1"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+      {/* Lista de Plantillas */}
+      {filteredTemplates.length === 0 ? (
+        <div className="glass-card" style={{ textAlign: 'center', padding: '3rem 1.5rem' }}>
+          <FileText size={48} color="var(--primary)" style={{ marginBottom: '1rem', opacity: 0.7 }} />
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 800 }}>No hay plantillas guardadas en esta categoría</h3>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px', marginBottom: '1rem' }}>
+            Haz clic en "Crear Plantilla Rica" para agregar tu primera plantilla con imagen, PDF o video.
+          </p>
+          <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+            <Plus size={16} /> Crear Plantilla Rica
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
+          {filteredTemplates.map((t) => (
+            <div key={t.id} className="glass-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
                   <div>
-                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Categoría</label>
-                    <input
-                      type="text"
-                      className="chat-input"
-                      style={{ width: '100%' }}
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value)}
-                      required
-                    />
+                    <span className="badge badge-purple" style={{ marginBottom: '4px', display: 'inline-block' }}>
+                      {t.category}
+                    </span>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)' }}>{t.title}</h3>
                   </div>
-
-                  <div>
-                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Tipo de Archivo Adjunto</label>
-                    <select
-                      className="chat-input"
-                      style={{ width: '100%' }}
-                      value={headerType}
-                      onChange={(e: any) => setHeaderType(e.target.value)}
-                    >
-                      <option value="IMAGE">📷 Imagen</option>
-                      <option value="VIDEO">🎬 Video</option>
-                      <option value="DOCUMENT">📄 Documento PDF</option>
-                      <option value="TEXT">✏️ Texto Destacado</option>
-                    </select>
-                  </div>
+                  <button
+                    className="btn btn-secondary"
+                    style={{ padding: '4px 6px', color: 'var(--accent-rose)' }}
+                    title="Eliminar Plantilla"
+                    onClick={() => handleDeleteTemplate(t.id)}
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
 
-                {/* Dual Mode Switcher: Subir Archivo vs Usar URL */}
-                {headerType !== 'TEXT' && (
-                  <div>
-                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '6px' }}>
-                      <button
-                        type="button"
-                        className={`btn btn-secondary ${inputMode === 'UPLOAD' ? 'active' : ''}`}
-                        style={{ padding: '3px 10px', fontSize: '0.75rem', background: inputMode === 'UPLOAD' ? 'var(--primary)' : 'var(--bg-main)', color: inputMode === 'UPLOAD' ? 'white' : 'var(--text-muted)' }}
-                        onClick={() => setInputMode('UPLOAD')}
-                      >
-                        <Upload size={12} /> Subir Archivo de PC
-                      </button>
-
-                      <button
-                        type="button"
-                        className={`btn btn-secondary ${inputMode === 'URL' ? 'active' : ''}`}
-                        style={{ padding: '3px 10px', fontSize: '0.75rem', background: inputMode === 'URL' ? 'var(--primary)' : 'var(--bg-main)', color: inputMode === 'URL' ? 'white' : 'var(--text-muted)' }}
-                        onClick={() => setInputMode('URL')}
-                      >
-                        <LinkIcon size={12} /> Pegar Enlace / URL
-                      </button>
-                    </div>
-
-                    {inputMode === 'UPLOAD' ? (
-                      <div
-                        onClick={() => fileInputRef.current?.click()}
-                        style={{
-                          border: '2px dashed var(--primary-glow)',
-                          borderRadius: 'var(--radius-md)',
-                          padding: '0.85rem',
-                          textAlign: 'center',
-                          cursor: 'pointer',
-                          background: 'rgba(99, 102, 241, 0.05)',
-                        }}
-                      >
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept={headerType === 'IMAGE' ? 'image/*' : headerType === 'VIDEO' ? 'video/*' : '.pdf,application/pdf'}
-                          style={{ display: 'none' }}
-                          onChange={handleFileUpload}
-                        />
-                        <Upload size={22} color="var(--primary)" style={{ margin: '0 auto 4px auto' }} />
-                        <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>
-                          {fileName ? `Archivo cargado: ${fileName}` : 'Haz clic para subir tu Imagen, Video o PDF'}
-                        </div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>
-                          Soporta JPG, PNG, MP4, PDF
-                        </div>
+                {/* Adjunto Multimedia Header */}
+                {(t.mediaUrl || t.headerContent) && (
+                  <div style={{ marginBottom: '0.75rem', borderRadius: 'var(--radius-md)', overflow: 'hidden', maxHeight: '140px', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {t.headerType === 'VIDEO' ? (
+                      <video src={t.mediaUrl || t.headerContent} controls style={{ width: '100%', maxHeight: '140px', objectFit: 'contain' }} />
+                    ) : t.headerType === 'DOCUMENT' ? (
+                      <div style={{ padding: '1rem', color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
+                        <File size={20} color="var(--primary)" /> 📄 Documento Adjunto PDF
                       </div>
                     ) : (
-                      <input
-                        type="text"
-                        className="chat-input"
-                        style={{ width: '100%' }}
-                        placeholder="https://..."
-                        value={headerContent}
-                        onChange={(e) => setHeaderContent(e.target.value)}
-                      />
+                      <img src={t.mediaUrl || t.headerContent} alt={t.title} style={{ width: '100%', maxHeight: '140px', objectFit: 'contain' }} />
                     )}
                   </div>
                 )}
 
-                {headerType === 'TEXT' && (
-                  <div>
-                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Texto del Encabezado</label>
-                    <input
-                      type="text"
-                      className="chat-input"
-                      style={{ width: '100%' }}
-                      placeholder="Ej: 🔥 PROMO EXCLUSIVA DE VIERNES"
-                      value={headerContent}
-                      onChange={(e) => setHeaderContent(e.target.value)}
-                    />
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', whiteSpace: 'pre-wrap', marginBottom: '0.75rem', background: 'var(--bg-main)', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                  {t.content}
+                </div>
+
+                {t.footer && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontStyle: 'italic', marginBottom: '0.75rem' }}>
+                    _{t.footer}_
                   </div>
                 )}
+              </div>
 
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                    <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Cuerpo Explicativo Largo</label>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--primary)' }}>+ Variables:</span>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '4px', marginBottom: '6px', flexWrap: 'wrap' }}>
-                    {['nombre', 'empresa', 'pedido', 'fecha', 'precio'].map((v) => (
-                      <button
-                        key={v}
-                        type="button"
-                        className="btn btn-secondary"
-                        style={{ fontSize: '0.65rem', padding: '2px 6px' }}
-                        onClick={() => insertVariable(v)}
-                      >
-                        + {`{{${v}}}`}
-                      </button>
-                    ))}
-                  </div>
-
-                  <textarea
-                    className="chat-input"
-                    style={{ width: '100%', height: '80px', resize: 'none' }}
-                    placeholder="Escribe el texto detallado..."
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    required
-                  />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem', marginTop: '0.5rem' }}>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  {t.variables && t.variables.map((v: string) => (
+                    <span key={v} className="badge badge-blue" style={{ fontSize: '0.65rem' }}>
+                      {`{{${v}}}`}
+                    </span>
+                  ))}
                 </div>
 
-                <div>
-                  <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-                    Pie de Página (Opcional - Firma)
-                  </label>
-                  <input
-                    type="text"
-                    className="chat-input"
-                    style={{ width: '100%' }}
-                    placeholder="Ej: Pizzería Don Luigi • Pedidos al +56986176136"
-                    value={footer}
-                    onChange={(e) => setFooter(e.target.value)}
-                  />
-                </div>
+                <button
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}
+                  onClick={() => copyToClipboard(t.content, t.id)}
+                >
+                  {copiedId === t.id ? <Check size={14} color="var(--accent-green)" /> : <Copy size={14} />}
+                  <span>{copiedId === t.id ? 'Copiado' : 'Copiar'}</span>
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
-                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
-                    Cancelar
-                  </button>
-                  <button type="submit" className="btn btn-primary">
-                    Guardar Plantilla Rica
-                  </button>
-                </div>
-              </form>
+      {/* Modal Crear Plantilla Rica */}
+      {showModal && (
+        <div className="modal-backdrop">
+          <div className="glass-card modal-content" style={{ maxWidth: '520px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Plus size={20} color="var(--primary)" />
+                <span>Crear Nueva Plantilla Rica</span>
+              </h3>
+              <button className="btn btn-secondary" style={{ padding: '4px 8px' }} onClick={() => setShowModal(false)}>
+                <X size={16} />
+              </button>
             </div>
 
-            {/* Vista Previa WhatsApp Nativa: Imagen Completa sin recortes y Texto hacia abajo */}
-            <div style={{ background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '1rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <form onSubmit={handleCreateTemplate} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
-                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-dim)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Eye size={14} /> Vista Previa WhatsApp Nativa
+                <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.3rem', fontWeight: 600 }}>
+                  Título de la Plantilla *
+                </label>
+                <input
+                  type="text"
+                  required
+                  className="chat-input"
+                  style={{ width: '100%' }}
+                  placeholder="Ej: 🔥 Oferta Especial Combo Familiar"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.3rem', fontWeight: 600 }}>
+                    Categoría
+                  </label>
+                  <select
+                    className="chat-input"
+                    style={{ width: '100%' }}
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                  >
+                    {uniqueCategories.filter((c) => c !== 'Todas').map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
-                {/* Contenedor Nativo Estilo WhatsApp Mensaje Multi-Media */}
-                <div className="msg-bubble outbound" style={{ width: '100%', padding: '0.4rem', borderRadius: 'var(--radius-md)' }}>
-                  {headerType === 'IMAGE' && headerContent && (
-                    <img
-                      src={headerContent}
-                      alt="Imagen Completa"
-                      style={{
-                        width: '100%',
-                        maxHeight: '260px',
-                        objectFit: 'contain',
-                        background: '#0a0a0c',
-                        borderRadius: 'var(--radius-sm)',
-                        marginBottom: '0.5rem',
-                        display: 'block',
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.3rem', fontWeight: 600 }}>
+                    Tipo de Archivo Adjunto
+                  </label>
+                  <select
+                    className="chat-input"
+                    style={{ width: '100%' }}
+                    value={headerType}
+                    onChange={(e) => setHeaderType(e.target.value as any)}
+                  >
+                    <option value="IMAGE">🖼️ Imagen</option>
+                    <option value="VIDEO">🎬 Video</option>
+                    <option value="DOCUMENT">📄 Documento PDF</option>
+                    <option value="TEXT">💬 Solo Texto</option>
+                  </select>
+                </div>
+              </div>
+
+              {headerType !== 'TEXT' && (
+                <div>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.3rem', fontWeight: 600 }}>
+                    Archivo Adjunto (Subir de PC o Enlace URL)
+                  </label>
+                  <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <button
+                      type="button"
+                      className={`btn ${inputMode === 'UPLOAD' ? 'btn-primary' : 'btn-secondary'}`}
+                      style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem' }}
+                      onClick={() => setInputMode('UPLOAD')}
+                    >
+                      <Upload size={14} /> 📁 Subir de PC
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn ${inputMode === 'URL' ? 'btn-primary' : 'btn-secondary'}`}
+                      style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem' }}
+                      onClick={() => setInputMode('URL')}
+                    >
+                      <LinkIcon size={14} /> 🌐 Pegar Enlace URL
+                    </button>
+                  </div>
+
+                  {inputMode === 'UPLOAD' ? (
+                    <div>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        style={{ display: 'none' }}
+                        accept="image/*,video/*,application/pdf"
+                        onChange={handleFileUpload}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        style={{ width: '100%', justifyContent: 'center', borderStyle: 'dashed' }}
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <Upload size={16} /> {fileName ? `Adjunto: ${fileName}` : 'Seleccionar Archivo de tu PC...'}
+                      </button>
+                    </div>
+                  ) : (
+                    <input
+                      type="url"
+                      className="chat-input"
+                      style={{ width: '100%' }}
+                      placeholder="https://ejemplo.com/imagen.jpg"
+                      value={mediaUrl}
+                      onChange={(e) => {
+                        setMediaUrl(e.target.value);
+                        setHeaderContent(e.target.value);
                       }}
                     />
                   )}
+                </div>
+              )}
 
-                  {headerType === 'VIDEO' && headerContent && (
-                    <video
-                      src={headerContent}
-                      controls
-                      style={{ width: '100%', maxHeight: '220px', borderRadius: 'var(--radius-sm)', marginBottom: '0.5rem', background: '#0a0a0c' }}
-                    />
-                  )}
-
-                  {headerType === 'DOCUMENT' && (
-                    <div style={{ background: 'rgba(255,255,255,0.1)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}>
-                      <File size={22} color="white" />
-                      <span>{fileName || 'Documento PDF Adjunto'}</span>
-                    </div>
-                  )}
-
-                  {headerType === 'TEXT' && headerContent && (
-                    <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#67e8f9', marginBottom: '0.35rem', padding: '0.25rem' }}>
-                      {headerContent.toUpperCase()}
-                    </div>
-                  )}
-
-                  <div style={{ fontSize: '0.85rem', lineHeight: 1.5, padding: '0.25rem' }}>
-                    {content || 'Escribe el cuerpo explicativo largo para ver la vista previa...'}
-                    {footer && (
-                      <div style={{ fontSize: '0.7rem', opacity: 0.8, borderTop: '1px solid rgba(255,255,255,0.2)', paddingTop: '4px', marginTop: '6px', fontStyle: 'italic' }}>
-                        {footer}
-                      </div>
-                    )}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                    Cuerpo del Mensaje Explicativo *
+                  </label>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ fontSize: '0.7rem', padding: '2px 6px' }}
+                      onClick={() => insertVariable('nombre')}
+                    >
+                      + {"{{nombre}}"}
+                    </button>
                   </div>
                 </div>
+                <textarea
+                  required
+                  className="chat-input"
+                  rows={4}
+                  style={{ width: '100%', resize: 'vertical' }}
+                  placeholder="¡Hola {{nombre}}! Escribe el texto explicativo de tu plantilla aquí..."
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                />
               </div>
 
-              <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', textAlign: 'center', marginTop: '1rem' }}>
-                OpenWA Rich Template Format
+              <div>
+                <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.3rem', fontWeight: 600 }}>
+                  Pie de Firma / Nombre de Empresa (Opcional)
+                </label>
+                <input
+                  type="text"
+                  className="chat-input"
+                  style={{ width: '100%' }}
+                  placeholder="Ej: Pizzería Don Luigi • Pedidos al +56986176136"
+                  value={footer}
+                  onChange={(e) => setFooter(e.target.value)}
+                />
               </div>
-            </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={saving || !title.trim() || !content.trim()}>
+                  {saving ? 'Guardando...' : 'Guardar Plantilla Rica'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
