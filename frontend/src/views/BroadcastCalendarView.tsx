@@ -17,7 +17,7 @@ export const BroadcastCalendarView: React.FC = () => {
 
   const fetchBroadcasts = async () => {
     try {
-      const res = await API.get('/broadcasts?tenantId=tenant_demo_pizzeria');
+      const res = await API.get('/broadcasts');
       if (res.data.success) {
         setBroadcasts(res.data.broadcasts);
       }
@@ -47,7 +47,6 @@ export const BroadcastCalendarView: React.FC = () => {
     try {
       const res = await API.post('/broadcasts', {
         ...form,
-        tenantId: 'tenant_demo_pizzeria',
       });
       if (res.data.success) {
         setShowModal(false);
@@ -63,6 +62,7 @@ export const BroadcastCalendarView: React.FC = () => {
       console.error(err);
     }
   };
+
 
   const monthNames = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',

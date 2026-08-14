@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { API } from '../services/api';
-import { socket } from '../services/socket';
+import { socket, joinTenantRoom } from '../services/socket';
 import { QrCode, CheckCircle2, RefreshCw, Smartphone, Server, Wifi, Plus, LogOut, AlertCircle, Tag, Check, Trash2 } from 'lucide-react';
 
 export const WhatsAppQRView: React.FC = () => {
@@ -23,7 +23,7 @@ export const WhatsAppQRView: React.FC = () => {
 
   const fetchTenantSessions = async () => {
     try {
-      const res = await API.get('/tenant/my-session?tenantId=tenant_demo_pizzeria');
+      const res = await API.get('/tenant/my-session');
       if (res.data.success) {
         const fetchedLines = res.data.lines || [];
         setLines(fetchedLines);
@@ -53,7 +53,7 @@ export const WhatsAppQRView: React.FC = () => {
   useEffect(() => {
     fetchTenantSessions();
 
-    socket.emit('join_tenant', 'tenant_demo_pizzeria');
+    joinTenantRoom();
 
     socket.on('whatsapp_qr', (data: any) => {
       setQrCodeUrl(data.qrCodeUrl);
@@ -89,7 +89,6 @@ export const WhatsAppQRView: React.FC = () => {
     const targetLineId = lineIdToConnect || activeLineId;
     try {
       const res = await API.post('/tenant/connect-whatsapp', {
-        tenantId: 'tenant_demo_pizzeria',
         lineId: targetLineId,
         sessionNameLabel: sessionNameLabel.trim() || 'Pizzeria',
       });
@@ -114,7 +113,6 @@ export const WhatsAppQRView: React.FC = () => {
     const idToDisconnect = targetLineId || activeLineId;
     try {
       await API.post('/tenant/disconnect-whatsapp', {
-        tenantId: 'tenant_demo_pizzeria',
         lineId: idToDisconnect,
       });
       setLines((prev) =>
@@ -135,7 +133,6 @@ export const WhatsAppQRView: React.FC = () => {
 
     try {
       const res = await API.post('/tenant/delete-line', {
-        tenantId: 'tenant_demo_pizzeria',
         lineId,
       });
 
@@ -152,7 +149,6 @@ export const WhatsAppQRView: React.FC = () => {
   const handleSwitchLine = async (lineId: string) => {
     try {
       const res = await API.post('/tenant/switch-line', {
-        tenantId: 'tenant_demo_pizzeria',
         lineId,
       });
       if (res.data.success) {
@@ -174,7 +170,6 @@ export const WhatsAppQRView: React.FC = () => {
 
     try {
       const res = await API.post('/tenant/add-line', {
-        tenantId: 'tenant_demo_pizzeria',
         name: newSessionName.trim(),
       });
 
@@ -189,6 +184,7 @@ export const WhatsAppQRView: React.FC = () => {
       console.error(err);
     }
   };
+
 
   const handleSaveOpenWAConfig = async (e: React.FormEvent) => {
     e.preventDefault();

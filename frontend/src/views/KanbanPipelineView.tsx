@@ -23,7 +23,7 @@ export const KanbanPipelineView: React.FC<KanbanProps> = ({ setCurrentTab }) => 
 
   const fetchKanban = async () => {
     try {
-      const res = await API.get('/kanban?tenantId=tenant_demo_pizzeria');
+      const res = await API.get('/kanban');
       if (res.data.success) {
         setColumns(res.data.columns);
       }
@@ -35,7 +35,7 @@ export const KanbanPipelineView: React.FC<KanbanProps> = ({ setCurrentTab }) => 
   const handleSyncKanban = async () => {
     setRefreshing(true);
     try {
-      const res = await API.post('/kanban/sync', { tenantId: 'tenant_demo_pizzeria' });
+      const res = await API.post('/kanban/sync');
       if (res.data.success && res.data.columns) {
         setColumns(res.data.columns);
         setNotification('⚡ Embudo de Ventas actualizado.');
@@ -51,7 +51,7 @@ export const KanbanPipelineView: React.FC<KanbanProps> = ({ setCurrentTab }) => 
   const handleClearKanban = async () => {
     if (!confirm('¿Deseas vaciar por completo todas las tarjetas del Embudo Kanban?')) return;
     try {
-      const res = await API.post('/kanban/clear', { tenantId: 'tenant_demo_pizzeria' });
+      const res = await API.post('/kanban/clear');
       if (res.data.success && res.data.columns) {
         setColumns(res.data.columns);
         setNotification('🧹 Embudo Kanban vaciado por completo (0 tarjetas).');
@@ -65,7 +65,7 @@ export const KanbanPipelineView: React.FC<KanbanProps> = ({ setCurrentTab }) => 
   const handleDeleteLead = async (e: React.MouseEvent, leadId: string) => {
     e.stopPropagation();
     try {
-      const res = await API.delete(`/kanban/lead/${leadId}?tenantId=tenant_demo_pizzeria`);
+      const res = await API.delete(`/kanban/lead/${leadId}`);
       if (res.data.success && res.data.columns) {
         setColumns(res.data.columns);
       }
@@ -99,7 +99,6 @@ export const KanbanPipelineView: React.FC<KanbanProps> = ({ setCurrentTab }) => 
   const handleMoveLead = async (leadId: string, sourceColId: string, targetColId: string) => {
     try {
       const res = await API.post('/kanban/move', {
-        tenantId: 'tenant_demo_pizzeria',
         leadId,
         sourceColId,
         targetColId,
@@ -131,7 +130,6 @@ export const KanbanPipelineView: React.FC<KanbanProps> = ({ setCurrentTab }) => 
     setSubmitting(true);
     try {
       const res = await API.post('/kanban/leads', {
-        tenantId: 'tenant_demo_pizzeria',
         columnId: targetColumnId,
         contactName: contactName.trim(),
         phone: phone.trim() || '+56986176136',
@@ -159,6 +157,7 @@ export const KanbanPipelineView: React.FC<KanbanProps> = ({ setCurrentTab }) => 
       setSubmitting(false);
     }
   };
+
 
   return (
     <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', height: '100%' }}>

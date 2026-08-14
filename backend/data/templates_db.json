@@ -1,9 +1,32 @@
 {
   "tenant_demo_pizzeria": {
     "categories": [
-      "PizTiers"
+      "PizTiers",
+      "General",
+      "Ventas",
+      "Promociones",
+      "Operaciones",
+      "Atención al Cliente",
+      "Categoria_Especial_1786684230271"
     ],
     "templates": [
+      {
+        "id": "test_tmpl_1786684230186",
+        "tenantId": "tenant_demo_pizzeria",
+        "isGlobal": false,
+        "title": "Plantilla de Prueba M2",
+        "category": "Ventas",
+        "headerType": "TEXT",
+        "headerContent": null,
+        "content": "Hola {{nombre}}, tu pedido está en camino a {direccion}",
+        "footer": "DanMax",
+        "variables": [
+          "nombre",
+          "direccion"
+        ],
+        "mediaUrl": null,
+        "createdAt": "2026-08-14T05:10:30.186Z"
+      },
       {
         "id": "t_piz",
         "title": "T Piz"
@@ -226,5 +249,30 @@
       "Atención al Cliente"
     ],
     "templates": []
+  },
+  "tenant_client_test_1786684230232": {
+    "categories": [
+      "General",
+      "Ventas",
+      "Promociones",
+      "Operaciones",
+      "Atención al Cliente"
+    ],
+    "templates": [
+      {
+        "id": "client_tmpl_1786684230249",
+        "tenantId": "tenant_client_test_1786684230232",
+        "isGlobal": false,
+        "title": "Plantilla Exclusiva Cliente",
+        "category": "General",
+        "headerType": "TEXT",
+        "headerContent": null,
+        "content": "Promoción solo para clientes de esta cuenta",
+        "footer": null,
+        "variables": [],
+        "mediaUrl": null,
+        "createdAt": "2026-08-14T05:10:30.249Z"
+      }
+    ]
   }
 }

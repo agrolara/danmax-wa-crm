@@ -1,4 +1,4 @@
-# BRIEFING — 2026-08-14T05:08:50Z
+# BRIEFING — 2026-08-14T05:10:50Z
 
 ## Mission
 Investigate multi-tenant persistence and client isolation for Group Categories (`groups_categories.json`), Multimedia Templates (`templates_db.json`), and Kanban Pipelines (`kanban_store.json`), identifying schema gaps, field drops, and missing endpoints.
@@ -20,12 +20,36 @@ Investigate multi-tenant persistence and client isolation for Group Categories (
 - Updated: 2026-08-14T05:08:50Z
 
 ## Investigation State
-- **Explored paths**: [Initializing]
-- **Key findings**: [TBD]
-- **Unexplored areas**: groups.routes.ts, templates.routes.ts, kanban.routes.ts, frontend views, storage managers
+- **Explored paths**:
+  - `backend/src/routes/groups.routes.ts`
+  - `backend/src/routes/templates.routes.ts`
+  - `backend/src/routes/kanban.routes.ts`
+  - `backend/src/routes/tenant.routes.ts`
+  - `backend/src/routes/chat.routes.ts`
+  - `backend/src/routes/auth.routes.ts`
+  - `backend/src/routes/broadcast.routes.ts`
+  - `backend/src/routes/team.routes.ts`
+  - `backend/src/routes/media.routes.ts`
+  - `backend/src/routes/webhook.routes.ts`
+  - `backend/src/services/storage.service.ts`
+  - `backend/src/services/openwa.service.ts`
+  - `backend/src/services/socket.service.ts`
+  - `frontend/src/views/GroupsView.tsx`
+  - `frontend/src/views/TemplatesView.tsx`
+  - `frontend/src/views/KanbanPipelineView.tsx`
+  - `frontend/src/views/ChatInboxView.tsx`
+  - `frontend/src/views/WhatsAppQRView.tsx`
+  - `frontend/src/services/api.ts`
+  - `frontend/src/services/socket.ts`
+- **Key findings**:
+  1. Group categories store (`groups_categories.json`): Partitioned by normalized tenant ID. Gaps: Missing legacy alias migration in `loadGroupStore`; category deletion leaves orphaned mappings in `groupCategoryMap`; lack of `unhide` endpoint.
+  2. Template store (`templates_db.json`): Partitioned by normalized tenant ID. Rich structure supports base64/URL media, variables regex `{{var}}` and `{var}`, headers, footers. Gaps: Frontend `TemplatesView` hardcodes `tenantId=global_whatsapp_line`; global templates (`isGlobal: true`) saved in tenant partition are not visible to other tenants.
+  3. Kanban store (`kanban_store.json`): Partitioned by normalized tenant ID. 5 columns with leads array. Gaps: Frontend `KanbanPipelineView` hardcodes `tenant_demo_pizzeria` in all API calls; lacks lead update endpoint (`PUT /leads/:id`) and column customizer endpoint (`PUT /columns`).
+  4. Client isolation: Frontend interceptor in `api.ts` attaches `x-tenant-id`, but hardcoded query/body params in views (`TemplatesView`, `KanbanPipelineView`, `ChatInboxView`, `WhatsAppQRView`) violate isolation principles.
+- **Unexplored areas**: None. Full stack surveyed.
 
 ## Key Decisions Made
-- Starting systematic examination of backend persistence files and frontend view state management.
+- Document complete evidence chains and actionable code snippets for Milestone 3 implementer.
 
 ## Artifact Index
 - `.agents/explorer_m3_1/BRIEFING.md` — Agent briefing & working memory

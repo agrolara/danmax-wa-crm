@@ -9,7 +9,7 @@ export const TeamView: React.FC = () => {
 
   const fetchTeam = async () => {
     try {
-      const res = await API.get('/team?tenantId=tenant_demo_pizzeria');
+      const res = await API.get('/team');
       if (res.data.success) {
         setTeam(res.data.team);
       }
@@ -27,7 +27,6 @@ export const TeamView: React.FC = () => {
     try {
       const res = await API.post('/team', {
         ...form,
-        tenantId: 'tenant_demo_pizzeria',
       });
       if (res.data.success) {
         setShowModal(false);
@@ -38,6 +37,7 @@ export const TeamView: React.FC = () => {
       console.error(err);
     }
   };
+
 
   return (
     <div style={{ padding: '2rem' }}>

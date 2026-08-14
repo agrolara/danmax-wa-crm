@@ -1,6 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { OpenWAService } from '../services/openwa.service';
-import { PersistentStore, getTenantIdFromReq, normalizeTenantId } from '../services/storage.service';
+import {
+  PersistentStore,
+  getTenantIdFromReq,
+  normalizeTenantId,
+  CANONICAL_ADMIN_TENANT,
+} from '../services/storage.service';
+import { socketService } from '../services/socket.service';
 
 export const groupsRouter = Router();
 
@@ -16,13 +22,31 @@ const DEFAULT_STORE: GroupCategoryStore = {
   hiddenGroupIds: [],
 };
 
-// Load persistent data strictly isolated per Tenant / Client ID
+// Load persistent data strictly isolated per Tenant / Client ID with legacy admin migration
 export function loadGroupStore(tenantId: string): GroupCategoryStore {
   const cleanTenant = normalizeTenantId(tenantId);
   const allStores = PersistentStore.readJSON<Record<string, GroupCategoryStore>>('groups_categories.json', {});
 
   if (!allStores[cleanTenant]) {
-    allStores[cleanTenant] = JSON.parse(JSON.stringify(DEFAULT_STORE));
+    // If canonical admin, check if any legacy admin alias has data to migrate
+    if (cleanTenant === CANONICAL_ADMIN_TENANT) {
+      const legacyKeys = ['danmax_wa_owner', 'super_admin', 'global_whatsapp_line', 'pizzeria', 'default', 'admin'];
+      for (const legacy of legacyKeys) {
+        if (
+          allStores[legacy] &&
+          (allStores[legacy].categories?.length > 0 ||
+            Object.keys(allStores[legacy].groupCategoryMap || {}).length > 0 ||
+            (allStores[legacy].hiddenGroupIds && allStores[legacy].hiddenGroupIds.length > 0))
+        ) {
+          allStores[cleanTenant] = allStores[legacy];
+          break;
+        }
+      }
+    }
+
+    if (!allStores[cleanTenant]) {
+      allStores[cleanTenant] = JSON.parse(JSON.stringify(DEFAULT_STORE));
+    }
     PersistentStore.writeJSON('groups_categories.json', allStores);
   }
 
@@ -120,6 +144,7 @@ groupsRouter.post('/hide', async (req: Request, res: Response) => {
   if (!store.hiddenGroupIds.includes(groupId)) {
     store.hiddenGroupIds.push(groupId);
     saveGroupStore(tenantId, store);
+    socketService.emitToTenant(tenantId, 'groups_updated', store);
   }
 
   const updatedGroups = await fetchLiveGroups(tenantId);
@@ -128,6 +153,30 @@ groupsRouter.post('/hide', async (req: Request, res: Response) => {
     success: true,
     tenantId,
     message: 'Grupo eliminado únicamente de la vista del CRM.',
+    groups: updatedGroups,
+    total: updatedGroups.length,
+  });
+});
+
+// POST /api/groups/unhide (Unhide/restore group in tenant CRM view)
+groupsRouter.post('/unhide', async (req: Request, res: Response) => {
+  const tenantId = getTenantIdFromReq(req);
+  const { groupId } = req.body;
+  if (!groupId) {
+    return res.status(400).json({ success: false, error: 'groupId es requerido' });
+  }
+
+  const store = loadGroupStore(tenantId);
+  store.hiddenGroupIds = store.hiddenGroupIds.filter((id) => id !== groupId);
+  saveGroupStore(tenantId, store);
+  socketService.emitToTenant(tenantId, 'groups_updated', store);
+
+  const updatedGroups = await fetchLiveGroups(tenantId);
+
+  return res.json({
+    success: true,
+    tenantId,
+    message: 'Grupo restaurado en la vista del CRM.',
     groups: updatedGroups,
     total: updatedGroups.length,
   });
@@ -148,6 +197,7 @@ groupsRouter.post('/categories', (req: Request, res: Response) => {
   if (cleanName && !store.categories.includes(cleanName)) {
     store.categories.push(cleanName);
     saveGroupStore(tenantId, store);
+    socketService.emitToTenant(tenantId, 'groups_updated', store);
   }
 
   return res.json({
@@ -158,7 +208,7 @@ groupsRouter.post('/categories', (req: Request, res: Response) => {
   });
 });
 
-// DELETE /api/groups/categories/:name (Delete category by URL param)
+// DELETE /api/groups/categories/:name (Delete category by URL param and sanitize assigned groups)
 groupsRouter.delete('/categories/:name', (req: Request, res: Response) => {
   const tenantId = getTenantIdFromReq(req);
   const categoryName = decodeURIComponent(req.params.name || '').trim();
@@ -166,7 +216,17 @@ groupsRouter.delete('/categories/:name', (req: Request, res: Response) => {
 
   if (categoryName && categoryName !== 'Todas' && store.categories.includes(categoryName)) {
     store.categories = store.categories.filter((c) => c !== categoryName);
+    // Sanitize groupCategoryMap: revert assigned groups from deleted category to 'Todas'
+    if (store.groupCategoryMap) {
+      for (const [gid, cat] of Object.entries(store.groupCategoryMap)) {
+        if (cat === categoryName) {
+          store.groupCategoryMap[gid] = 'Todas';
+        }
+      }
+    }
     saveGroupStore(tenantId, store);
+    socketService.emitToTenant(tenantId, 'groups_updated', store);
+
     return res.json({
       success: true,
       tenantId,
@@ -182,7 +242,7 @@ groupsRouter.delete('/categories/:name', (req: Request, res: Response) => {
   return res.status(404).json({ success: false, error: 'Categoría no encontrada en tu cuenta' });
 });
 
-// DELETE /api/groups/categories (Delete category strictly for this tenant via body or query)
+// DELETE /api/groups/categories (Delete category strictly for this tenant via body or query and sanitize assigned groups)
 groupsRouter.delete('/categories', (req: Request, res: Response) => {
   const tenantId = getTenantIdFromReq(req);
   const { categoryName, name } = req.body;
@@ -191,7 +251,17 @@ groupsRouter.delete('/categories', (req: Request, res: Response) => {
 
   if (targetCategory && targetCategory !== 'Todas' && store.categories.includes(targetCategory)) {
     store.categories = store.categories.filter((c) => c !== targetCategory);
+    // Sanitize groupCategoryMap: revert assigned groups from deleted category to 'Todas'
+    if (store.groupCategoryMap) {
+      for (const [gid, cat] of Object.entries(store.groupCategoryMap)) {
+        if (cat === targetCategory) {
+          store.groupCategoryMap[gid] = 'Todas';
+        }
+      }
+    }
     saveGroupStore(tenantId, store);
+    socketService.emitToTenant(tenantId, 'groups_updated', store);
+
     return res.json({
       success: true,
       tenantId,
@@ -216,6 +286,7 @@ groupsRouter.post('/assign-category', (req: Request, res: Response) => {
   if (groupId && category) {
     store.groupCategoryMap[groupId] = category;
     saveGroupStore(tenantId, store);
+    socketService.emitToTenant(tenantId, 'groups_updated', store);
   }
 
   return res.json({ success: true, tenantId, message: 'Categoría de grupo actualizada exclusivamente para tu cuenta' });
@@ -254,4 +325,5 @@ groupsRouter.post('/broadcast', async (req: Request, res: Response) => {
     results,
   });
 });
+
 

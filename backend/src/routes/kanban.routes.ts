@@ -251,6 +251,75 @@ kanbanRouter.delete('/lead/:id', (req: Request, res: Response) => {
   return res.json({ success: true, message: 'Oportunidad eliminada del Embudo', tenantId, columns });
 });
 
+// PUT /api/kanban/leads/:id (Update lead card details or move column)
+kanbanRouter.put('/leads/:id', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const tenantId = getTenantIdFromReq(req);
+  const { contactName, phone, value, items, columnId } = req.body;
+  const columns = getOrCreateKanban(tenantId);
+
+  let targetLead: KanbanLead | null = null;
+  let currentColumn: KanbanColumn | null = null;
+
+  for (const col of columns) {
+    const found = col.leads.find((l) => l.id === id);
+    if (found) {
+      targetLead = found;
+      currentColumn = col;
+      break;
+    }
+  }
+
+  if (!targetLead || !currentColumn) {
+    return res.status(404).json({ success: false, error: 'Oportunidad no encontrada' });
+  }
+
+  if (contactName !== undefined) targetLead.contactName = contactName.trim();
+  if (phone !== undefined) targetLead.phone = phone.trim();
+  if (value !== undefined) targetLead.value = value.trim();
+  if (items !== undefined) targetLead.items = items.trim();
+
+  if (columnId && columnId !== currentColumn.id) {
+    const targetCol = columns.find((c) => c.id === columnId);
+    if (targetCol) {
+      currentColumn.leads = currentColumn.leads.filter((l) => l.id !== id);
+      targetCol.leads.unshift(targetLead);
+    }
+  }
+
+  saveKanban(tenantId, columns);
+  socketService.emitToTenant(tenantId, 'kanban_updated', columns);
+  return res.json({ success: true, tenantId, columns, lead: targetLead });
+});
+
+// POST /api/kanban/columns (Update column metadata like name, color, autoTemplateText)
+kanbanRouter.post('/columns', (req: Request, res: Response) => {
+  const tenantId = getTenantIdFromReq(req);
+  const { columnId, id, name, color, autoTemplateText, columns: bulkColumns } = req.body;
+  const columns = getOrCreateKanban(tenantId);
+
+  if (Array.isArray(bulkColumns) && bulkColumns.length > 0) {
+    saveKanban(tenantId, bulkColumns);
+    socketService.emitToTenant(tenantId, 'kanban_updated', bulkColumns);
+    return res.json({ success: true, tenantId, columns: bulkColumns, message: 'Columnas actualizadas' });
+  }
+
+  const targetId = columnId || id;
+  const targetCol = columns.find((c) => c.id === targetId);
+
+  if (!targetCol) {
+    return res.status(404).json({ success: false, error: 'Columna no encontrada' });
+  }
+
+  if (name !== undefined) targetCol.name = name.trim();
+  if (color !== undefined) targetCol.color = color.trim();
+  if (autoTemplateText !== undefined) targetCol.autoTemplateText = autoTemplateText.trim();
+
+  saveKanban(tenantId, columns);
+  socketService.emitToTenant(tenantId, 'kanban_updated', columns);
+  return res.json({ success: true, tenantId, columns, column: targetCol, message: 'Columna actualizada' });
+});
+
 // POST /api/kanban/leads (Manual creation endpoint)
 kanbanRouter.post('/leads', (req: Request, res: Response) => {
   const tenantId = getTenantIdFromReq(req);
@@ -276,3 +345,4 @@ kanbanRouter.post('/leads', (req: Request, res: Response) => {
 
   return res.json({ success: true, tenantId, columns, lead: newLead });
 });
+

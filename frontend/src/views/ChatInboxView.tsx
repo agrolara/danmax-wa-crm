@@ -33,7 +33,7 @@ export const ChatInboxView: React.FC = () => {
 
   const fetchChats = async () => {
     try {
-      const res = await API.get('/chats?tenantId=tenant_demo_pizzeria');
+      const res = await API.get('/chats');
       if (res.data.success) {
         const fetchedChats = res.data.chats;
         setChats(fetchedChats);
@@ -59,7 +59,7 @@ export const ChatInboxView: React.FC = () => {
         }
       }
 
-      const resTeam = await API.get('/team?tenantId=tenant_demo_pizzeria');
+      const resTeam = await API.get('/team');
       if (resTeam.data.success) {
         setTeamMembers(resTeam.data.team || []);
       }
@@ -129,7 +129,6 @@ export const ChatInboxView: React.FC = () => {
       await API.post('/chats/send', {
         chatId: activeChat.id,
         text: messageContent,
-        tenantId: 'tenant_demo_pizzeria',
       });
     } catch (err) {
       console.error('Error sending message:', err);
@@ -142,7 +141,6 @@ export const ChatInboxView: React.FC = () => {
       await API.post('/chats/assign', {
         chatId: activeChat.id,
         agentName,
-        tenantId: 'tenant_demo_pizzeria',
       });
 
       setChats((prev) =>
@@ -196,7 +194,6 @@ export const ChatInboxView: React.FC = () => {
       const res = await API.post('/chats/broadcast-contacts', {
         contactIds: selectedContactIds,
         messageText: broadcastMessage.trim(),
-        tenantId: 'tenant_demo_pizzeria',
       });
 
       if (res.data.success) {
@@ -241,7 +238,6 @@ export const ChatInboxView: React.FC = () => {
           }));
 
         const res = await API.post('/kanban/bulk-add', {
-          tenantId: 'tenant_demo_pizzeria',
           contacts: selectedChatsObjects,
           columnId: kanbanTargetCol,
         });
@@ -254,7 +250,6 @@ export const ChatInboxView: React.FC = () => {
         }
       } else if (activeChat) {
         const res = await API.post('/kanban/add-from-chat', {
-          tenantId: 'tenant_demo_pizzeria',
           chatId: activeChat.id,
           contactName: activeChat.contactName,
           phone: activeChat.phone,
@@ -274,6 +269,7 @@ export const ChatInboxView: React.FC = () => {
       setAddingToKanban(false);
     }
   };
+
 
   const filteredChats = chats.filter((c) => {
     const matchesSearch =

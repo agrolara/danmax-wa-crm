@@ -7,7 +7,7 @@ export const MediaCatalogView: React.FC = () => {
 
   const fetchMedia = async () => {
     try {
-      const res = await API.get('/media?tenantId=tenant_demo_pizzeria');
+      const res = await API.get('/media');
       if (res.data.success) {
         setMediaItems(res.data.media);
       }
@@ -15,6 +15,7 @@ export const MediaCatalogView: React.FC = () => {
       console.error(err);
     }
   };
+
 
   useEffect(() => {
     fetchMedia();

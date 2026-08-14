@@ -30,7 +30,7 @@ export const TemplatesView: React.FC = () => {
 
   const fetchTemplates = async () => {
     try {
-      const res = await API.get('/templates?tenantId=global_whatsapp_line');
+      const res = await API.get('/templates');
       if (res.data.success) {
         setTemplates(res.data.templates || []);
         if (res.data.categories) {
@@ -77,7 +77,6 @@ export const TemplatesView: React.FC = () => {
         footer: footer.trim(),
         isGlobal,
         mediaUrl,
-        tenantId: 'global_whatsapp_line',
       });
 
       if (res.data.success) {
@@ -106,7 +105,7 @@ export const TemplatesView: React.FC = () => {
   const handleDeleteTemplate = async (id: string) => {
     if (!confirm('¿Deseas eliminar esta plantilla?')) return;
     try {
-      const res = await API.delete(`/templates/${id}?tenantId=global_whatsapp_line`);
+      const res = await API.delete(`/templates/${id}`);
       if (res.data.success) {
         if (res.data.templates) setTemplates(res.data.templates);
         setStatusNotification('Plantilla eliminada.');
@@ -117,6 +116,7 @@ export const TemplatesView: React.FC = () => {
       console.error(err);
     }
   };
+
 
   const insertVariable = (varName: string) => {
     setContent((prev) => `${prev} {{${varName}}}`);

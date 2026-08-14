@@ -14,7 +14,8 @@
       "RouteCat_pizzeria",
       "RouteCat_default",
       "Admin_Group_Cat_1786684006091",
-      "Admin_Group_Cat_1786684047433"
+      "Admin_Group_Cat_1786684047433",
+      "GrupoVIP_1786684230506"
     ],
     "groupCategoryMap": {},
     "hiddenGroupIds": []
@@ -107,6 +108,13 @@
     "groupCategoryMap": {
       "67890@g.us": "Beta_Group_Cat_1786684047433"
     },
+    "hiddenGroupIds": []
+  },
+  "tenant_client_groups_1786684230543": {
+    "categories": [
+      "Todas"
+    ],
+    "groupCategoryMap": {},
     "hiddenGroupIds": []
   }
 }

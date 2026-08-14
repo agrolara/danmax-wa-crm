@@ -5,6 +5,7 @@ import {
   normalizeTenantId,
   CANONICAL_ADMIN_TENANT,
 } from '../services/storage.service';
+import { socketService } from '../services/socket.service';
 
 export const templatesRouter = Router();
 
@@ -102,16 +103,31 @@ export function saveTemplatesStore(tenantId: string, storeData: TemplatesStore):
 // ============================================================================
 
 // GET /api/templates — Retrieve all templates and categories for the normalized tenant
+// Automatically merges global templates (isGlobal: true) from canonical admin if current tenant is a client
 templatesRouter.get('/', (req: Request, res: Response) => {
   const tenantId = getTenantIdFromReq(req);
-  const store = loadTemplatesStore(tenantId);
+  const cleanTenant = normalizeTenantId(tenantId);
+  const allStores = PersistentStore.readJSON<Record<string, TemplatesStore>>('templates_db.json', {});
+  const tenantStore = loadTemplatesStore(cleanTenant);
+
+  // Merge global templates from canonical admin store if current tenant is a client
+  let mergedTemplates = [...(tenantStore.templates || [])];
+  if (cleanTenant !== CANONICAL_ADMIN_TENANT && allStores[CANONICAL_ADMIN_TENANT]) {
+    const globalTemplates = (allStores[CANONICAL_ADMIN_TENANT].templates || []).filter((t) => t.isGlobal);
+    const existingIds = new Set(mergedTemplates.map((t) => t.id));
+    for (const gt of globalTemplates) {
+      if (!existingIds.has(gt.id)) {
+        mergedTemplates.push(gt);
+      }
+    }
+  }
 
   return res.json({
     success: true,
-    tenantId,
-    templates: store.templates || [],
-    categories: Array.from(new Set(store.categories)),
-    total: (store.templates || []).length,
+    tenantId: cleanTenant,
+    templates: mergedTemplates,
+    categories: Array.from(new Set(tenantStore.categories)),
+    total: mergedTemplates.length,
   });
 });
 
@@ -142,6 +158,7 @@ templatesRouter.post('/categories', (req: Request, res: Response) => {
   if (!store.categories.includes(targetCategory)) {
     store.categories.push(targetCategory);
     saveTemplatesStore(tenantId, store);
+    socketService.emitToTenant(tenantId, 'templates_updated', store);
   }
 
   return res.json({
@@ -161,6 +178,7 @@ templatesRouter.delete('/categories/:name', (req: Request, res: Response) => {
   if (categoryName && store.categories.includes(categoryName)) {
     store.categories = store.categories.filter((c) => c !== categoryName);
     saveTemplatesStore(tenantId, store);
+    socketService.emitToTenant(tenantId, 'templates_updated', store);
     return res.json({
       success: true,
       tenantId,
@@ -182,6 +200,7 @@ templatesRouter.delete('/categories', (req: Request, res: Response) => {
   if (targetCategory && store.categories.includes(targetCategory)) {
     store.categories = store.categories.filter((c) => c !== targetCategory);
     saveTemplatesStore(tenantId, store);
+    socketService.emitToTenant(tenantId, 'templates_updated', store);
     return res.json({
       success: true,
       tenantId,
@@ -231,12 +250,63 @@ templatesRouter.post('/', (req: Request, res: Response) => {
   }
 
   saveTemplatesStore(tenantId, store);
+  socketService.emitToTenant(tenantId, 'templates_updated', store);
 
   return res.json({
     success: true,
     tenantId,
     message: `Plantilla "${newTmpl.title}" creada y guardada exclusivamente para tu cuenta de forma 100% permanente.`,
     template: newTmpl,
+    templates: store.templates,
+    categories: Array.from(new Set(store.categories)),
+  });
+});
+
+// PUT /api/templates/:id — Update existing rich template
+templatesRouter.put('/:id', (req: Request, res: Response) => {
+  const tenantId = getTenantIdFromReq(req);
+  const { id } = req.params;
+  const { title, category, headerType, headerContent, content, footer, isGlobal, mediaUrl } = req.body;
+  const store = loadTemplatesStore(tenantId);
+
+  const targetTmpl = store.templates.find((t) => t.id === id);
+  if (!targetTmpl) {
+    return res.status(404).json({ success: false, error: 'Plantilla no encontrada en tu cuenta' });
+  }
+
+  if (title !== undefined) targetTmpl.title = title.trim();
+  if (headerType !== undefined) targetTmpl.headerType = headerType;
+  if (headerContent !== undefined) targetTmpl.headerContent = headerContent;
+  if (footer !== undefined) targetTmpl.footer = footer ? footer.trim() : null;
+  if (mediaUrl !== undefined) targetTmpl.mediaUrl = mediaUrl || null;
+  if (isGlobal !== undefined) {
+    targetTmpl.isGlobal = !!isGlobal;
+    targetTmpl.tenantId = isGlobal ? 'global' : tenantId;
+  }
+
+  if (content !== undefined) {
+    targetTmpl.content = content.trim();
+    const varMatches = (targetTmpl.content || '').match(/\{{1,2}([a-zA-Z0-9_\-]+)\}{1,2}/g) || [];
+    targetTmpl.variables = Array.from(
+      new Set<string>(varMatches.map((v: string) => v.replace(/[\{\}]/g, '').trim()).filter(Boolean))
+    );
+  }
+
+  if (category !== undefined) {
+    targetTmpl.category = category.trim();
+    if (targetTmpl.category && !store.categories.includes(targetTmpl.category)) {
+      store.categories.push(targetTmpl.category);
+    }
+  }
+
+  saveTemplatesStore(tenantId, store);
+  socketService.emitToTenant(tenantId, 'templates_updated', store);
+
+  return res.json({
+    success: true,
+    tenantId,
+    message: `Plantilla "${targetTmpl.title}" actualizada exitosamente.`,
+    template: targetTmpl,
     templates: store.templates,
     categories: Array.from(new Set(store.categories)),
   });
@@ -252,6 +322,7 @@ templatesRouter.delete('/:id', (req: Request, res: Response) => {
   if (idx !== -1) {
     const [deleted] = store.templates.splice(idx, 1);
     saveTemplatesStore(tenantId, store);
+    socketService.emitToTenant(tenantId, 'templates_updated', store);
     return res.json({
       success: true,
       tenantId,
@@ -263,4 +334,5 @@ templatesRouter.delete('/:id', (req: Request, res: Response) => {
 
   return res.status(404).json({ success: false, error: 'Plantilla no encontrada en tu cuenta' });
 });
+
 

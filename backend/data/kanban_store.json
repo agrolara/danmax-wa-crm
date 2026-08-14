@@ -856,5 +856,42 @@
       "autoTemplateText": "✅ Pedido y atención finalizada con éxito. ¡Gracias por preferirnos!",
       "leads": []
     }
+  ],
+  "tenant_client_kanban_1786684230329": [
+    {
+      "id": "col_1",
+      "name": "Contacto Nuevo",
+      "color": "#6366f1",
+      "autoTemplateText": "¡Hola {{nombre}}! Gracias por comunicarte con nosotros.",
+      "leads": []
+    },
+    {
+      "id": "col_2",
+      "name": "En Cotización / Negociación",
+      "color": "#f59e0b",
+      "autoTemplateText": "Hola {{nombre}}, estamos preparando tu propuesta.",
+      "leads": []
+    },
+    {
+      "id": "col_3",
+      "name": "En Seguimiento",
+      "color": "#3b82f6",
+      "autoTemplateText": "Hola {{nombre}}, ¿tuviste oportunidad de revisar nuestra información?",
+      "leads": []
+    },
+    {
+      "id": "col_4",
+      "name": "Venta Cerrada",
+      "color": "#10b981",
+      "autoTemplateText": "🎉 ¡Muchas gracias por tu preferencia {{nombre}}!",
+      "leads": []
+    },
+    {
+      "id": "col_5",
+      "name": "Terminado",
+      "color": "#ec4899",
+      "autoTemplateText": "✅ Pedido y atención finalizada con éxito. ¡Gracias por preferirnos!",
+      "leads": []
+    }
   ]
 }

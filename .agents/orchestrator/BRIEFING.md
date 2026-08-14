@@ -41,19 +41,20 @@ Fix permanent storage and multi-tenant persistence in DanMax WA CRM across disk 
 - Project pattern selected for multi-tenant persistence overhaul.
 - Milestone 1 passed: Multi-tier storage engine, atomic writes, deep scoring, auto-backfill.
 - Milestone 2 passed: Canonical admin alias mapping (`tenant_demo_pizzeria`), route & socket normalization.
-- Milestone 3 active: Verifying & completing group categories, rich templates, kanban cards persistence, and frontend view synchronization.
+- Milestone 3 active: Explorers completed (3/3). Worker dispatched to implement backend routes & frontend cleanups.
 
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
 |-------|------|-----------|--------|---------|
-| explorer_m3_1 | teamwork_preview_explorer | M3 group & template persistence analysis | in-progress | 45ff4899-a30e-4249-bc91-7798e43f72f9 |
-| explorer_m3_2 | teamwork_preview_explorer | M3 client tenant isolation analysis | in-progress | 2e943de3-4a0a-4280-a0cd-9fd326944286 |
-| explorer_m3_3 | teamwork_preview_explorer | M3 frontend session & sync analysis | in-progress | df947faa-bf92-4069-9311-42646368158d |
+| explorer_m3_1 | teamwork_preview_explorer | M3 group & template persistence analysis | completed | 45ff4899-a30e-4249-bc91-7798e43f72f9 |
+| explorer_m3_2 | teamwork_preview_explorer | M3 client tenant isolation analysis | completed | 2e943de3-4a0a-4280-a0cd-9fd326944286 |
+| explorer_m3_3 | teamwork_preview_explorer | M3 frontend session & sync analysis | completed | df947faa-bf92-4069-9311-42646368158d |
+| worker_m3 | teamwork_preview_worker | Implement M3 route fixes, frontend cleanup, test suite | in-progress | ec1007f5-666d-44bf-a9d8-31fb1a7597aa |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 3 / 20
-- Pending subagents: 45ff4899-a30e-4249-bc91-7798e43f72f9, 2e943de3-4a0a-4280-a0cd-9fd326944286, df947faa-bf92-4069-9311-42646368158d
+- Spawn count: 4 / 20
+- Pending subagents: ec1007f5-666d-44bf-a9d8-31fb1a7597aa
 - Predecessor: gen1
 - Successor: not yet spawned
 
