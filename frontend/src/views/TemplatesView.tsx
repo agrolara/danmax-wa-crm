@@ -96,7 +96,8 @@ export const TemplatesView: React.FC = () => {
         fetchTemplates();
       }
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Error al guardar la plantilla');
+      const errorMsg = err.response?.data?.error || err.response?.data?.message || err.message || 'Error al guardar la plantilla';
+      alert(`Error al guardar la plantilla: ${errorMsg}`);
     } finally {
       setSaving(false);
     }
