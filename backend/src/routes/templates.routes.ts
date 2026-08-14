@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { PersistentStore, getTenantIdFromReq } from '../services/storage.service';
+import { PersistentStore, getTenantIdFromReq, normalizeTenantId } from '../services/storage.service';
 
 export const templatesRouter = Router();
 
@@ -27,7 +27,7 @@ const DEFAULT_CATEGORIES = ['General', 'Ventas', 'Promociones', 'Operaciones', '
 
 // Persistent Isolated Storage Engine for Templates per Client / Tenant
 function loadTemplatesStore(tenantId: string): TemplatesStore {
-  const cleanTenant = tenantId || 'tenant_demo_pizzeria';
+  const cleanTenant = normalizeTenantId(tenantId);
   const allStores = PersistentStore.readJSON<Record<string, TemplatesStore>>('templates_db.json', {});
 
   if (!allStores[cleanTenant]) {
@@ -49,7 +49,7 @@ function loadTemplatesStore(tenantId: string): TemplatesStore {
 }
 
 function saveTemplatesStore(tenantId: string, storeData: TemplatesStore) {
-  const cleanTenant = tenantId || 'tenant_demo_pizzeria';
+  const cleanTenant = normalizeTenantId(tenantId);
   const allStores = PersistentStore.readJSON<Record<string, TemplatesStore>>('templates_db.json', {});
   allStores[cleanTenant] = storeData;
   PersistentStore.writeJSON('templates_db.json', allStores);

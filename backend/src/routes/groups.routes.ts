@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { OpenWAService } from '../services/openwa.service';
-import { PersistentStore, getTenantIdFromReq } from '../services/storage.service';
+import { PersistentStore, getTenantIdFromReq, normalizeTenantId } from '../services/storage.service';
 
 export const groupsRouter = Router();
 
@@ -18,7 +18,7 @@ const DEFAULT_STORE: GroupCategoryStore = {
 
 // Load persistent data strictly isolated per Tenant / Client ID
 function loadGroupStore(tenantId: string): GroupCategoryStore {
-  const cleanTenant = tenantId || 'tenant_demo_pizzeria';
+  const cleanTenant = normalizeTenantId(tenantId);
   const allStores = PersistentStore.readJSON<Record<string, GroupCategoryStore>>('groups_categories.json', {});
 
   if (!allStores[cleanTenant]) {
@@ -34,7 +34,7 @@ function loadGroupStore(tenantId: string): GroupCategoryStore {
 }
 
 function saveGroupStore(tenantId: string, storeData: GroupCategoryStore) {
-  const cleanTenant = tenantId || 'tenant_demo_pizzeria';
+  const cleanTenant = normalizeTenantId(tenantId);
   const allStores = PersistentStore.readJSON<Record<string, GroupCategoryStore>>('groups_categories.json', {});
   allStores[cleanTenant] = storeData;
   PersistentStore.writeJSON('groups_categories.json', allStores);
