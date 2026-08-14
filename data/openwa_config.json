@@ -1,0 +1,5 @@
+{
+  "openwaApiUrl": "https://wa-custom.agrolara.dedyn.io",
+  "openwaAdminKey": "SecretKeyCustom_456!",
+  "webhookPublicUrl": "https://webhook-custom.agrolara.dedyn.io"
+}

@@ -44,14 +44,23 @@ Fix permanent storage and multi-tenant persistence in DanMax WA CRM across disk 
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
 |-------|------|-----------|--------|---------|
-| explorer_survey_1 | teamwork_preview_explorer | Survey storage architecture | in-progress | 5094cb40-a254-44cb-b793-bccb35893ab2 |
-| explorer_survey_2 | teamwork_preview_explorer | Survey tenant normalization | in-progress | 9ab5fdef-edb1-4f5f-b38b-8aec0b92e393 |
-| explorer_survey_3 | teamwork_preview_explorer | Survey isolation & verification | in-progress | d2288c87-96ca-4c0e-8dbd-e416ca7a99c2 |
+| explorer_survey_1 | teamwork_preview_explorer | Survey storage architecture | completed | 5094cb40-a254-44cb-b793-bccb35893ab2 |
+| explorer_survey_2 | teamwork_preview_explorer | Survey tenant normalization | completed | 9ab5fdef-edb1-4f5f-b38b-8aec0b92e393 |
+| explorer_survey_3 | teamwork_preview_explorer | Survey isolation & verification | completed | d2288c87-96ca-4c0e-8dbd-e416ca7a99c2 |
+| explorer_m1_1 | teamwork_preview_explorer | M1 path list & atomic write | completed | 4d3c0acb-7827-4363-8a86-b2628ccad66b |
+| explorer_m1_2 | teamwork_preview_explorer | M1 completeness scoring & backfill | completed | 24008cd2-dd52-48bd-aea1-99dfa8c30f96 |
+| explorer_m1_3 | teamwork_preview_explorer | M1 env.ts persistent config boot | completed | f2b83f23-eda7-4bd7-ae4c-fbbee842979d |
+| worker_m1 | teamwork_preview_worker | Implement M1 storage engine & env.ts | completed | 6bb9b666-800d-41d0-bf9f-29755315b312 |
+| reviewer_m1_1 | teamwork_preview_reviewer | M1 code review & build check | in-progress | 44386a11-802b-43be-bbde-5415eaa3112f |
+| reviewer_m1_2 | teamwork_preview_reviewer | M1 adversarial review & path check | in-progress | bd456708-a329-4235-934a-ce90e49e5926 |
+| challenger_m1_1 | teamwork_preview_challenger | M1 stress test disk wipe & corruption | in-progress | a51d907a-2763-4984-a541-8438314ed061 |
+| challenger_m1_2 | teamwork_preview_challenger | M1 stress test scoring & anti-recursion | in-progress | f6aacb48-a559-40c9-8ef5-abf54182fa88 |
+| auditor_m1_1 | teamwork_preview_auditor | M1 forensic integrity audit | in-progress | 196c21c6-b5ff-4477-9422-1b1667c73f59 |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 3 / 20
-- Pending subagents: 5094cb40-a254-44cb-b793-bccb35893ab2, 9ab5fdef-edb1-4f5f-b38b-8aec0b92e393, d2288c87-96ca-4c0e-8dbd-e416ca7a99c2
+- Spawn count: 12 / 20
+- Pending subagents: 44386a11-802b-43be-bbde-5415eaa3112f, bd456708-a329-4235-934a-ce90e49e5926, a51d907a-2763-4984-a541-8438314ed061, f6aacb48-a559-40c9-8ef5-abf54182fa88, 196c21c6-b5ff-4477-9422-1b1667c73f59
 - Predecessor: none
 - Successor: not yet spawned
 
