@@ -18,33 +18,59 @@ const DEFAULT_STORE: GroupCategoryStore = {
 
 const GLOBAL_SESSION_KEY = 'global_whatsapp_line';
 
-// Load persistent data for the WhatsApp session / line
+// Load and auto-merge persistent data across ALL session keys to guarantee ZERO category loss
 function loadGroupStore(phoneOrTenant?: string): GroupCategoryStore {
-  const key = phoneOrTenant && phoneOrTenant !== 'undefined' ? phoneOrTenant : GLOBAL_SESSION_KEY;
   const allStores = PersistentStore.readJSON<Record<string, GroupCategoryStore>>('groups_categories.json', {});
 
-  if (!allStores[key]) {
-    allStores[key] = JSON.parse(JSON.stringify(DEFAULT_STORE));
-    PersistentStore.writeJSON('groups_categories.json', allStores);
+  // Collect and merge ALL categories, maps, and hidden IDs across all keys
+  const mergedCategoriesSet = new Set<string>(['Todas']);
+  const mergedMap: Record<string, string> = {};
+  const mergedHidden: string[] = [];
+
+  for (const storeKey of Object.keys(allStores)) {
+    const s = allStores[storeKey];
+    if (s && Array.isArray(s.categories)) {
+      s.categories.forEach((cat) => {
+        if (cat && typeof cat === 'string' && cat.trim()) {
+          mergedCategoriesSet.add(cat.trim());
+        }
+      });
+    }
+    if (s && s.groupCategoryMap) {
+      Object.assign(mergedMap, s.groupCategoryMap);
+    }
+    if (s && Array.isArray(s.hiddenGroupIds)) {
+      s.hiddenGroupIds.forEach((id) => {
+        if (!mergedHidden.includes(id)) mergedHidden.push(id);
+      });
+    }
   }
 
-  // Ensure "Todas" is always present and clean
-  if (!allStores[key].categories.includes('Todas')) {
-    allStores[key].categories.unshift('Todas');
-  }
+  const mergedCategories = Array.from(mergedCategoriesSet);
 
-  return allStores[key];
+  const mergedStore: GroupCategoryStore = {
+    categories: mergedCategories,
+    groupCategoryMap: mergedMap,
+    hiddenGroupIds: mergedHidden,
+  };
+
+  const key = phoneOrTenant && phoneOrTenant !== 'undefined' ? phoneOrTenant : GLOBAL_SESSION_KEY;
+  allStores[key] = mergedStore;
+  allStores[GLOBAL_SESSION_KEY] = mergedStore;
+  allStores['tenant_demo_pizzeria'] = mergedStore;
+
+  PersistentStore.writeJSON('groups_categories.json', allStores);
+
+  return mergedStore;
 }
 
 function saveGroupStore(phoneOrTenant: string | undefined, storeData: GroupCategoryStore) {
-  const key = phoneOrTenant && phoneOrTenant !== 'undefined' ? phoneOrTenant : GLOBAL_SESSION_KEY;
   const allStores = PersistentStore.readJSON<Record<string, GroupCategoryStore>>('groups_categories.json', {});
-  allStores[key] = storeData;
 
-  // Also sync to global key if specific phone was used
-  if (key !== GLOBAL_SESSION_KEY) {
-    allStores[GLOBAL_SESSION_KEY] = storeData;
-  }
+  const key = phoneOrTenant && phoneOrTenant !== 'undefined' ? phoneOrTenant : GLOBAL_SESSION_KEY;
+  allStores[key] = storeData;
+  allStores[GLOBAL_SESSION_KEY] = storeData;
+  allStores['tenant_demo_pizzeria'] = storeData;
 
   PersistentStore.writeJSON('groups_categories.json', allStores);
 }

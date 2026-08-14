@@ -26,47 +26,56 @@ interface TemplatesStore {
 const DEFAULT_CATEGORIES = ['General', 'Ventas', 'Promociones', 'Operaciones', 'Atención al Cliente'];
 const GLOBAL_KEY = 'global_whatsapp_line';
 
-// Persistent In-Memory + Disk Storage Engine for Templates
-let inMemoryTemplatesStore: Record<string, TemplatesStore> = {};
-
+// Persistent Auto-Merging Storage Engine for Templates
 function loadTemplatesStore(tenantId: string = GLOBAL_KEY): TemplatesStore {
+  const allStores = PersistentStore.readJSON<Record<string, TemplatesStore>>('templates_db.json', {});
+
+  const mergedCategoriesSet = new Set<string>(DEFAULT_CATEGORIES);
+  const mergedTemplatesMap = new Map<string, TemplateItem>();
+
+  for (const storeKey of Object.keys(allStores)) {
+    const s = allStores[storeKey];
+    if (s && Array.isArray(s.categories)) {
+      s.categories.forEach((c) => {
+        if (c && typeof c === 'string' && c.trim()) mergedCategoriesSet.add(c.trim());
+      });
+    }
+    if (s && Array.isArray(s.templates)) {
+      s.templates.forEach((tmpl) => {
+        if (tmpl && tmpl.id) {
+          mergedTemplatesMap.set(tmpl.id, tmpl);
+        }
+      });
+    }
+  }
+
+  const mergedTemplates = Array.from(mergedTemplatesMap.values());
+  const mergedCategories = Array.from(mergedCategoriesSet);
+
+  const resultStore: TemplatesStore = {
+    categories: mergedCategories,
+    templates: mergedTemplates,
+  };
+
   const key = tenantId && tenantId !== 'undefined' ? tenantId : GLOBAL_KEY;
+  allStores[key] = resultStore;
+  allStores[GLOBAL_KEY] = resultStore;
+  allStores['tenant_demo_pizzeria'] = resultStore;
 
-  if (!inMemoryTemplatesStore[key]) {
-    const diskStores = PersistentStore.readJSON<Record<string, TemplatesStore>>('templates_db.json', {});
-    if (diskStores[key] && Array.isArray(diskStores[key].templates)) {
-      inMemoryTemplatesStore[key] = diskStores[key];
-    } else if (diskStores[GLOBAL_KEY] && Array.isArray(diskStores[GLOBAL_KEY].templates)) {
-      inMemoryTemplatesStore[key] = diskStores[GLOBAL_KEY];
-    } else {
-      inMemoryTemplatesStore[key] = {
-        categories: [...DEFAULT_CATEGORIES],
-        templates: [],
-      };
-    }
-  }
+  PersistentStore.writeJSON('templates_db.json', allStores);
 
-  // Ensure default categories exist
-  for (const cat of DEFAULT_CATEGORIES) {
-    if (!inMemoryTemplatesStore[key].categories.includes(cat)) {
-      inMemoryTemplatesStore[key].categories.push(cat);
-    }
-  }
-
-  return inMemoryTemplatesStore[key];
+  return resultStore;
 }
 
 function saveTemplatesStore(tenantId: string = GLOBAL_KEY, storeData: TemplatesStore) {
+  const allStores = PersistentStore.readJSON<Record<string, TemplatesStore>>('templates_db.json', {});
+
   const key = tenantId && tenantId !== 'undefined' ? tenantId : GLOBAL_KEY;
-  inMemoryTemplatesStore[key] = storeData;
-  inMemoryTemplatesStore[GLOBAL_KEY] = storeData;
+  allStores[key] = storeData;
+  allStores[GLOBAL_KEY] = storeData;
+  allStores['tenant_demo_pizzeria'] = storeData;
 
-  const diskStores = PersistentStore.readJSON<Record<string, TemplatesStore>>('templates_db.json', {});
-  diskStores[key] = storeData;
-  diskStores[GLOBAL_KEY] = storeData;
-  diskStores['tenant_demo_pizzeria'] = storeData;
-
-  PersistentStore.writeJSON('templates_db.json', diskStores);
+  PersistentStore.writeJSON('templates_db.json', allStores);
 }
 
 // GET /api/templates

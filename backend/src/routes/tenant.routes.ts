@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { OpenWAService } from '../services/openwa.service';
 import { socketService } from '../services/socket.service';
+import { PersistentStore } from '../services/storage.service';
 import { ENV } from '../config/env';
 
 export const tenantRouter = Router();
@@ -24,42 +25,36 @@ interface TenantData {
   lines: WhatsAppLine[];
 }
 
-const tenantStore: Record<string, TenantData> = {
-  tenant_demo_pizzeria: {
-    tenantId: 'tenant_demo_pizzeria',
-    name: 'Mi Negocio DanMax WA',
-    activeLineId: null,
-    lines: [],
-  },
-};
+function loadTenantStore(): Record<string, TenantData> {
+  const diskData = PersistentStore.readJSON<Record<string, TenantData>>('tenant_lines.json', {});
+  if (!diskData.tenant_demo_pizzeria) {
+    diskData.tenant_demo_pizzeria = {
+      tenantId: 'tenant_demo_pizzeria',
+      name: 'Mi Negocio DanMax WA',
+      activeLineId: null,
+      lines: [],
+    };
+    PersistentStore.writeJSON('tenant_lines.json', diskData);
+  }
+  return diskData;
+}
+
+function saveTenantStore(store: Record<string, TenantData>) {
+  PersistentStore.writeJSON('tenant_lines.json', store);
+}
 
 function getOrCreateTenant(tenantId: string = 'tenant_demo_pizzeria'): TenantData {
-  if (!tenantStore[tenantId]) {
-    tenantStore[tenantId] = {
+  const store = loadTenantStore();
+  if (!store[tenantId]) {
+    store[tenantId] = {
       tenantId,
       name: 'Mi Negocio DanMax WA',
       activeLineId: null,
       lines: [],
     };
+    saveTenantStore(store);
   }
-  return tenantStore[tenantId];
-}
-
-function updateEnvFile(key: string, value: string) {
-  const envPath = path.join(__dirname, '../../.env');
-  let envContent = '';
-  if (fs.existsSync(envPath)) {
-    envContent = fs.readFileSync(envPath, 'utf8');
-  }
-
-  const regex = new RegExp(`^${key}=.*$`, 'm');
-  if (regex.test(envContent)) {
-    envContent = envContent.replace(regex, `${key}="${value}"`);
-  } else {
-    envContent += `\n${key}="${value}"`;
-  }
-
-  fs.writeFileSync(envPath, envContent, 'utf8');
+  return store[tenantId];
 }
 
 // GET /api/tenant/openwa-config
@@ -87,14 +82,17 @@ tenantRouter.post('/config-openwa', async (req: Request, res: Response) => {
   if (apiUrl) {
     ENV.OPENWA_API_URL = apiUrl;
     process.env.OPENWA_API_URL = apiUrl;
-    updateEnvFile('OPENWA_API_URL', apiUrl);
   }
 
   if (adminKey && !adminKey.includes('•')) {
     ENV.OPENWA_ADMIN_KEY = adminKey;
     process.env.OPENWA_ADMIN_KEY = adminKey;
-    updateEnvFile('OPENWA_ADMIN_KEY', adminKey);
   }
+
+  PersistentStore.writeJSON('openwa_config.json', {
+    openwaApiUrl: ENV.OPENWA_API_URL,
+    openwaAdminKey: ENV.OPENWA_ADMIN_KEY,
+  });
 
   const testResult = await OpenWAService.testConnection(ENV.OPENWA_API_URL, ENV.OPENWA_ADMIN_KEY);
 
@@ -152,6 +150,10 @@ tenantRouter.get('/my-session', async (req: Request, res: Response) => {
           }
         }
       }
+
+      const store = loadTenantStore();
+      store[tenantId] = tenant;
+      saveTenantStore(store);
     } catch (e) {
       console.warn('[Session Auto-Discovery Error]:', e);
     }
@@ -190,6 +192,10 @@ tenantRouter.post('/add-line', async (req: Request, res: Response) => {
   tenant.lines.push(newLine);
   tenant.activeLineId = lineId;
 
+  const store = loadTenantStore();
+  store[targetTenantId] = tenant;
+  saveTenantStore(store);
+
   return res.json({
     success: true,
     message: `Línea "${customName}" creada exitosamente`,
@@ -218,6 +224,10 @@ tenantRouter.post('/delete-line', async (req: Request, res: Response) => {
     tenant.activeLineId = tenant.lines[0]?.id || null;
   }
 
+  const store = loadTenantStore();
+  store[targetTenantId] = tenant;
+  saveTenantStore(store);
+
   return res.json({
     success: true,
     message: `Línea "${deletedLine.name}" eliminada exitosamente`,
@@ -238,6 +248,10 @@ tenantRouter.post('/switch-line', (req: Request, res: Response) => {
   }
 
   tenant.activeLineId = lineId;
+
+  const store = loadTenantStore();
+  store[targetTenantId] = tenant;
+  saveTenantStore(store);
 
   return res.json({
     success: true,
@@ -304,6 +318,10 @@ tenantRouter.post('/connect-whatsapp', async (req: Request, res: Response) => {
       message: openwaResult.message,
     });
 
+    const store = loadTenantStore();
+    store[targetTenantId] = tenant;
+    saveTenantStore(store);
+
     return res.json({
       success: true,
       message: openwaResult.message,
@@ -324,6 +342,10 @@ tenantRouter.post('/connect-whatsapp', async (req: Request, res: Response) => {
     sessionId: line.openwaSessionId,
     sessionNameLabel: line.name,
   });
+
+  const store = loadTenantStore();
+  store[targetTenantId] = tenant;
+  saveTenantStore(store);
 
   return res.json({
     success: true,
@@ -353,6 +375,10 @@ tenantRouter.post('/disconnect-whatsapp', async (req: Request, res: Response) =>
     lineId: line?.id,
     message: 'Sesión de WhatsApp desconectada.',
   });
+
+  const store = loadTenantStore();
+  store[targetTenantId] = tenant;
+  saveTenantStore(store);
 
   return res.json({ success: true, message: 'Sesión cerrada exitosamente en OpenWA', lines: tenant.lines });
 });
