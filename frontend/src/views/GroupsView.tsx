@@ -115,11 +115,12 @@ export const GroupsView: React.FC = () => {
     setSelectedTemplateId(tmplId);
     const tmpl = templates.find((t) => t.id === tmplId);
     if (tmpl) {
-      setHeaderText(tmpl.headerText || '');
-      setBroadcastMessage(tmpl.bodyText || '');
-      setFooterText(tmpl.footerText || '');
-      if (tmpl.mediaUrl) {
-        setMediaUrl(tmpl.mediaUrl);
+      setHeaderText(tmpl.title || tmpl.headerText || '');
+      setBroadcastMessage(tmpl.content || tmpl.bodyText || '');
+      setFooterText(tmpl.footer || tmpl.footerText || '');
+      const media = tmpl.mediaUrl || tmpl.headerContent || '';
+      if (media) {
+        setMediaUrl(media);
         setMediaMode('URL');
       }
     }
