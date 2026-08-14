@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { OpenWAService } from '../services/openwa.service';
-import { PersistentStore } from '../services/storage.service';
+import { PersistentStore, getTenantIdFromReq } from '../services/storage.service';
 
 export const groupsRouter = Router();
 
@@ -16,69 +16,34 @@ const DEFAULT_STORE: GroupCategoryStore = {
   hiddenGroupIds: [],
 };
 
-const GLOBAL_SESSION_KEY = 'global_whatsapp_line';
-
-// Load and auto-merge persistent data across ALL session keys to guarantee ZERO category loss
-function loadGroupStore(phoneOrTenant?: string): GroupCategoryStore {
+// Load persistent data strictly isolated per Tenant / Client ID
+function loadGroupStore(tenantId: string): GroupCategoryStore {
+  const cleanTenant = tenantId || 'tenant_demo_pizzeria';
   const allStores = PersistentStore.readJSON<Record<string, GroupCategoryStore>>('groups_categories.json', {});
 
-  // Collect and merge ALL categories, maps, and hidden IDs across all keys
-  const mergedCategoriesSet = new Set<string>(['Todas']);
-  const mergedMap: Record<string, string> = {};
-  const mergedHidden: string[] = [];
-
-  for (const storeKey of Object.keys(allStores)) {
-    const s = allStores[storeKey];
-    if (s && Array.isArray(s.categories)) {
-      s.categories.forEach((cat) => {
-        if (cat && typeof cat === 'string' && cat.trim()) {
-          mergedCategoriesSet.add(cat.trim());
-        }
-      });
-    }
-    if (s && s.groupCategoryMap) {
-      Object.assign(mergedMap, s.groupCategoryMap);
-    }
-    if (s && Array.isArray(s.hiddenGroupIds)) {
-      s.hiddenGroupIds.forEach((id) => {
-        if (!mergedHidden.includes(id)) mergedHidden.push(id);
-      });
-    }
+  if (!allStores[cleanTenant]) {
+    allStores[cleanTenant] = JSON.parse(JSON.stringify(DEFAULT_STORE));
+    PersistentStore.writeJSON('groups_categories.json', allStores);
   }
 
-  const mergedCategories = Array.from(mergedCategoriesSet);
+  if (!allStores[cleanTenant].categories.includes('Todas')) {
+    allStores[cleanTenant].categories.unshift('Todas');
+  }
 
-  const mergedStore: GroupCategoryStore = {
-    categories: mergedCategories,
-    groupCategoryMap: mergedMap,
-    hiddenGroupIds: mergedHidden,
-  };
-
-  const key = phoneOrTenant && phoneOrTenant !== 'undefined' ? phoneOrTenant : GLOBAL_SESSION_KEY;
-  allStores[key] = mergedStore;
-  allStores[GLOBAL_SESSION_KEY] = mergedStore;
-  allStores['tenant_demo_pizzeria'] = mergedStore;
-
-  PersistentStore.writeJSON('groups_categories.json', allStores);
-
-  return mergedStore;
+  return allStores[cleanTenant];
 }
 
-function saveGroupStore(phoneOrTenant: string | undefined, storeData: GroupCategoryStore) {
+function saveGroupStore(tenantId: string, storeData: GroupCategoryStore) {
+  const cleanTenant = tenantId || 'tenant_demo_pizzeria';
   const allStores = PersistentStore.readJSON<Record<string, GroupCategoryStore>>('groups_categories.json', {});
-
-  const key = phoneOrTenant && phoneOrTenant !== 'undefined' ? phoneOrTenant : GLOBAL_SESSION_KEY;
-  allStores[key] = storeData;
-  allStores[GLOBAL_SESSION_KEY] = storeData;
-  allStores['tenant_demo_pizzeria'] = storeData;
-
+  allStores[cleanTenant] = storeData;
   PersistentStore.writeJSON('groups_categories.json', allStores);
 }
 
-async function fetchLiveGroups(sessionName?: string) {
-  const store = loadGroupStore(sessionName);
+async function fetchLiveGroups(tenantId: string) {
+  const store = loadGroupStore(tenantId);
   const hiddenSet = new Set(store.hiddenGroupIds);
-  const liveChats = await OpenWAService.getLiveChats(sessionName);
+  const liveChats = await OpenWAService.getLiveChats(tenantId);
 
   if (liveChats.success && liveChats.chats.length > 0) {
     return liveChats.chats
@@ -98,25 +63,26 @@ async function fetchLiveGroups(sessionName?: string) {
   return [];
 }
 
-// GET /api/groups
+// GET /api/groups (Strictly isolated by client/tenant)
 groupsRouter.get('/', async (req: Request, res: Response) => {
-  const sessionName = req.query.sessionName as string;
-  const groups = await fetchLiveGroups(sessionName);
-  const store = loadGroupStore(sessionName);
+  const tenantId = getTenantIdFromReq(req);
+  const groups = await fetchLiveGroups(tenantId);
+  const store = loadGroupStore(tenantId);
 
   return res.json({
     success: true,
+    tenantId,
     groups,
     categories: Array.from(new Set(['Todas', ...store.categories])),
     total: groups.length,
   });
 });
 
-// POST /api/groups/sync (Force re-sync of WhatsApp groups from OpenWA Engine)
+// POST /api/groups/sync (Force re-sync of WhatsApp groups for tenant)
 groupsRouter.post('/sync', async (req: Request, res: Response) => {
-  const { sessionName } = req.body;
-  const groups = await fetchLiveGroups(sessionName);
-  const store = loadGroupStore(sessionName);
+  const tenantId = getTenantIdFromReq(req);
+  const groups = await fetchLiveGroups(tenantId);
+  const store = loadGroupStore(tenantId);
 
   return res.json({
     success: true,
@@ -127,20 +93,21 @@ groupsRouter.post('/sync', async (req: Request, res: Response) => {
   });
 });
 
-// POST /api/groups/hide (Delete group ONLY from CRM view)
+// POST /api/groups/hide (Hide group from tenant CRM view)
 groupsRouter.post('/hide', async (req: Request, res: Response) => {
-  const { groupId, sessionName } = req.body;
+  const tenantId = getTenantIdFromReq(req);
+  const { groupId } = req.body;
   if (!groupId) {
     return res.status(400).json({ success: false, error: 'groupId es requerido' });
   }
 
-  const store = loadGroupStore(sessionName);
+  const store = loadGroupStore(tenantId);
   if (!store.hiddenGroupIds.includes(groupId)) {
     store.hiddenGroupIds.push(groupId);
-    saveGroupStore(sessionName, store);
+    saveGroupStore(tenantId, store);
   }
 
-  const updatedGroups = await fetchLiveGroups(sessionName);
+  const updatedGroups = await fetchLiveGroups(tenantId);
 
   return res.json({
     success: true,
@@ -150,58 +117,62 @@ groupsRouter.post('/hide', async (req: Request, res: Response) => {
   });
 });
 
-// POST /api/groups/categories (Persistent user-created categories linked to session/phone)
+// POST /api/groups/categories (Create category strictly for this client/tenant)
 groupsRouter.post('/categories', (req: Request, res: Response) => {
-  const { categoryName, sessionName } = req.body;
+  const tenantId = getTenantIdFromReq(req);
+  const { categoryName } = req.body;
   const cleanName = categoryName?.trim();
-  const store = loadGroupStore(sessionName);
+  const store = loadGroupStore(tenantId);
 
   if (cleanName && !store.categories.includes(cleanName)) {
     store.categories.push(cleanName);
-    saveGroupStore(sessionName, store);
+    saveGroupStore(tenantId, store);
   }
 
   return res.json({
     success: true,
+    tenantId,
     categories: Array.from(new Set(['Todas', ...store.categories])),
-    message: 'Nueva categoría creada y guardada de forma 100% permanente',
+    message: 'Nueva categoría creada y guardada exclusivamente para tu cuenta',
   });
 });
 
-// DELETE /api/groups/categories (Delete category)
+// DELETE /api/groups/categories (Delete category strictly for this tenant)
 groupsRouter.delete('/categories', (req: Request, res: Response) => {
-  const { categoryName, sessionName } = req.body;
-  const store = loadGroupStore(sessionName);
+  const tenantId = getTenantIdFromReq(req);
+  const { categoryName } = req.body;
+  const store = loadGroupStore(tenantId);
 
   if (categoryName && categoryName !== 'Todas') {
     store.categories = store.categories.filter((c) => c !== categoryName);
-    saveGroupStore(sessionName, store);
+    saveGroupStore(tenantId, store);
   }
 
   return res.json({
     success: true,
     categories: Array.from(new Set(['Todas', ...store.categories])),
-    message: 'Categoría eliminada',
+    message: 'Categoría eliminada de tu cuenta',
   });
 });
 
-// POST /api/groups/assign-category (Persistent group-to-category mapping)
+// POST /api/groups/assign-category (Assign group category strictly for this tenant)
 groupsRouter.post('/assign-category', (req: Request, res: Response) => {
-  const { groupId, category, sessionName } = req.body;
-  const store = loadGroupStore(sessionName);
+  const tenantId = getTenantIdFromReq(req);
+  const { groupId, category } = req.body;
+  const store = loadGroupStore(tenantId);
 
   if (groupId && category) {
     store.groupCategoryMap[groupId] = category;
-    saveGroupStore(sessionName, store);
+    saveGroupStore(tenantId, store);
   }
 
-  return res.json({ success: true, message: 'Categoría de grupo actualizada y guardada de forma permanente' });
+  return res.json({ success: true, message: 'Categoría de grupo actualizada exclusivamente para tu cuenta' });
 });
 
 // POST /api/groups/broadcast
 groupsRouter.post('/broadcast', async (req: Request, res: Response) => {
-  const { groupIds, messageText, headerText, footerText, mediaUrl, sessionName } = req.body;
-  const targetSession = sessionName || 'ventas-online';
+  const tenantId = getTenantIdFromReq(req);
+  const { groupIds, messageText, headerText, footerText, mediaUrl } = req.body;
 
   if (!groupIds || !Array.isArray(groupIds) || groupIds.length === 0 || !messageText) {
     return res.status(400).json({ success: false, error: 'Debes seleccionar al menos un grupo e ingresar el mensaje' });
@@ -216,7 +187,7 @@ groupsRouter.post('/broadcast', async (req: Request, res: Response) => {
   const results = [];
   for (const groupId of groupIds) {
     const resSend = await OpenWAService.sendMessage(
-      targetSession,
+      tenantId,
       '',
       groupId,
       compiledFullMessage

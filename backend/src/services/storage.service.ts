@@ -1,10 +1,27 @@
 import fs from 'fs';
 import path from 'path';
+import { Request } from 'express';
 
 const DATA_DIR = path.join(__dirname, '../../data');
 
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+export function getTenantIdFromReq(req: Request): string {
+  const headerTenant = req.headers['x-tenant-id'] as string;
+  if (headerTenant && headerTenant.trim() && headerTenant !== 'undefined' && headerTenant !== 'null') {
+    return headerTenant.trim().toLowerCase().replace(/[^a-z0-9_]/gi, '_');
+  }
+  const queryTenant = (req.query.tenantId || req.query.sessionName) as string;
+  if (queryTenant && queryTenant.trim() && queryTenant !== 'undefined' && queryTenant !== 'null') {
+    return queryTenant.trim().toLowerCase().replace(/[^a-z0-9_]/gi, '_');
+  }
+  const bodyTenant = (req.body?.tenantId || req.body?.sessionName) as string;
+  if (bodyTenant && bodyTenant.trim() && bodyTenant !== 'undefined' && bodyTenant !== 'null') {
+    return bodyTenant.trim().toLowerCase().replace(/[^a-z0-9_]/gi, '_');
+  }
+  return 'tenant_demo_pizzeria';
 }
 
 export class PersistentStore {

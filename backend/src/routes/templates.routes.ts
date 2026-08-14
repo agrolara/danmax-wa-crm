@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { PersistentStore } from '../services/storage.service';
+import { PersistentStore, getTenantIdFromReq } from '../services/storage.service';
 
 export const templatesRouter = Router();
 
@@ -24,75 +24,54 @@ interface TemplatesStore {
 }
 
 const DEFAULT_CATEGORIES = ['General', 'Ventas', 'Promociones', 'Operaciones', 'Atención al Cliente'];
-const GLOBAL_KEY = 'global_whatsapp_line';
 
-// Persistent Auto-Merging Storage Engine for Templates
-function loadTemplatesStore(tenantId: string = GLOBAL_KEY): TemplatesStore {
+// Persistent Isolated Storage Engine for Templates per Client / Tenant
+function loadTemplatesStore(tenantId: string): TemplatesStore {
+  const cleanTenant = tenantId || 'tenant_demo_pizzeria';
   const allStores = PersistentStore.readJSON<Record<string, TemplatesStore>>('templates_db.json', {});
 
-  const mergedCategoriesSet = new Set<string>(DEFAULT_CATEGORIES);
-  const mergedTemplatesMap = new Map<string, TemplateItem>();
+  if (!allStores[cleanTenant]) {
+    allStores[cleanTenant] = {
+      categories: [...DEFAULT_CATEGORIES],
+      templates: [],
+    };
+    PersistentStore.writeJSON('templates_db.json', allStores);
+  }
 
-  for (const storeKey of Object.keys(allStores)) {
-    const s = allStores[storeKey];
-    if (s && Array.isArray(s.categories)) {
-      s.categories.forEach((c) => {
-        if (c && typeof c === 'string' && c.trim()) mergedCategoriesSet.add(c.trim());
-      });
-    }
-    if (s && Array.isArray(s.templates)) {
-      s.templates.forEach((tmpl) => {
-        if (tmpl && tmpl.id) {
-          mergedTemplatesMap.set(tmpl.id, tmpl);
-        }
-      });
+  // Ensure default categories exist
+  for (const cat of DEFAULT_CATEGORIES) {
+    if (!allStores[cleanTenant].categories.includes(cat)) {
+      allStores[cleanTenant].categories.push(cat);
     }
   }
 
-  const mergedTemplates = Array.from(mergedTemplatesMap.values());
-  const mergedCategories = Array.from(mergedCategoriesSet);
-
-  const resultStore: TemplatesStore = {
-    categories: mergedCategories,
-    templates: mergedTemplates,
-  };
-
-  const key = tenantId && tenantId !== 'undefined' ? tenantId : GLOBAL_KEY;
-  allStores[key] = resultStore;
-  allStores[GLOBAL_KEY] = resultStore;
-  allStores['tenant_demo_pizzeria'] = resultStore;
-
-  PersistentStore.writeJSON('templates_db.json', allStores);
-
-  return resultStore;
+  return allStores[cleanTenant];
 }
 
-function saveTemplatesStore(tenantId: string = GLOBAL_KEY, storeData: TemplatesStore) {
+function saveTemplatesStore(tenantId: string, storeData: TemplatesStore) {
+  const cleanTenant = tenantId || 'tenant_demo_pizzeria';
   const allStores = PersistentStore.readJSON<Record<string, TemplatesStore>>('templates_db.json', {});
-
-  const key = tenantId && tenantId !== 'undefined' ? tenantId : GLOBAL_KEY;
-  allStores[key] = storeData;
-  allStores[GLOBAL_KEY] = storeData;
-  allStores['tenant_demo_pizzeria'] = storeData;
-
+  allStores[cleanTenant] = storeData;
   PersistentStore.writeJSON('templates_db.json', allStores);
 }
 
-// GET /api/templates
+// GET /api/templates (Strictly isolated by client/tenant)
 templatesRouter.get('/', (req: Request, res: Response) => {
-  const tenantId = (req.query.tenantId as string) || GLOBAL_KEY;
+  const tenantId = getTenantIdFromReq(req);
   const store = loadTemplatesStore(tenantId);
 
   return res.json({
     success: true,
+    tenantId,
     templates: store.templates || [],
     categories: Array.from(new Set(store.categories)),
   });
 });
 
-// POST /api/templates (Create Rich Multi-Media Template)
+// POST /api/templates (Create Rich Multi-Media Template strictly owned by this client)
 templatesRouter.post('/', (req: Request, res: Response) => {
-  const { title, category, headerType, headerContent, content, footer, isGlobal, tenantId = GLOBAL_KEY, mediaUrl } = req.body;
+  const tenantId = getTenantIdFromReq(req);
+  const { title, category, headerType, headerContent, content, footer, isGlobal, mediaUrl } = req.body;
   const store = loadTemplatesStore(tenantId);
 
   const varMatches = content?.match(/\{\{([^}]+)\}\}/g) || [];
@@ -100,7 +79,7 @@ templatesRouter.post('/', (req: Request, res: Response) => {
 
   const newTmpl: TemplateItem = {
     id: `tmpl_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-    tenantId: isGlobal ? null : tenantId,
+    tenantId: isGlobal ? 'global' : tenantId,
     isGlobal: !!isGlobal,
     title: title || 'Plantilla sin título',
     category: category || 'General',
@@ -122,17 +101,17 @@ templatesRouter.post('/', (req: Request, res: Response) => {
 
   return res.json({
     success: true,
-    message: `Plantilla "${newTmpl.title}" guardada exitosamente de forma 100% permanente.`,
+    message: `Plantilla "${newTmpl.title}" creada y guardada exclusivamente para tu cuenta de forma 100% permanente.`,
     template: newTmpl,
     templates: store.templates,
     categories: Array.from(new Set(store.categories)),
   });
 });
 
-// DELETE /api/templates/:id
+// DELETE /api/templates/:id (Delete template owned by this client)
 templatesRouter.delete('/:id', (req: Request, res: Response) => {
+  const tenantId = getTenantIdFromReq(req);
   const { id } = req.params;
-  const tenantId = (req.query.tenantId as string) || GLOBAL_KEY;
   const store = loadTemplatesStore(tenantId);
 
   const idx = store.templates.findIndex((t) => t.id === id);
@@ -141,10 +120,10 @@ templatesRouter.delete('/:id', (req: Request, res: Response) => {
     saveTemplatesStore(tenantId, store);
     return res.json({
       success: true,
-      message: `Plantilla "${deleted.title}" eliminada`,
+      message: `Plantilla "${deleted.title}" eliminada de tu cuenta`,
       templates: store.templates,
     });
   }
 
-  return res.status(404).json({ success: false, error: 'Plantilla no encontrada' });
+  return res.status(404).json({ success: false, error: 'Plantilla no encontrada en tu cuenta' });
 });
